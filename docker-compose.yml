@@ -1,0 +1,11 @@
+services:
+  api:
+    build: .
+    container_name: rag-platform-api
+    ports:
+      - "8000:8000"
+    environment:
+      RAG_PLATFORM_APP_NAME: "Rag Platform"
+      RAG_PLATFORM_ENVIRONMENT: "docker"
+      RAG_PLATFORM_DEBUG: "true"
+      RAG_PLATFORM_API_VERSION: "v1"
