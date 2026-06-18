@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     debug: bool = Field(default=True)
     api_version: str = Field(default="v1")
 
+    # tests and local boot should work without Docker using SQLite
+    database_url: str = Field(default="sqlite:///./rag_platform.db")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="RAG_PLATFORM_",
