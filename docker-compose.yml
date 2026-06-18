@@ -9,3 +9,21 @@ services:
       RAG_PLATFORM_ENVIRONMENT: "docker"
       RAG_PLATFORM_DEBUG: "true"
       RAG_PLATFORM_API_VERSION: "v1"
+      RAG_PLATFORM_DATABASE_URL: "postgresql+psycopg://rag_platform:rag_platform@postgres:5432/rag_platform"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17
+    container_name: rag-platform-postgres
+    environment:
+      POSTGRES_USER: rag_platform
+      POSTGRES_PASSWORD: rag_platform
+      POSTGRES_DB: rag_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - rag_platform_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  rag_platform_postgres_data:

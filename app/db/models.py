@@ -24,10 +24,12 @@ from app.models.enums import DocumentStatus, JobStatus, WorkspaceRole
 def new_uuid() -> str:
     return str(uuid4())
 
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
-class TimestampMixin: 
+
+class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -41,16 +43,16 @@ class TimestampMixin:
         nullable=False,
     )
 
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid())
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     memberships: Mapped[list[WorkspaceMember]] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan"
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     messages: Mapped[list[ConversationMessage]] = relationship(back_populates="user")
@@ -95,9 +97,7 @@ class WorkspaceMember(Base, TimestampMixin):
 
 class Document(Base, TimestampMixin):
     __tablename__ = "documents"
-    __table_args__ = (
-        Index("ix_documents_workspace_status", "workspace_id", "status"),
-    )
+    __table_args__ = (Index("ix_documents_workspace_status", "workspace_id", "status"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
@@ -124,11 +124,10 @@ class Document(Base, TimestampMixin):
         cascade="all, delete-orphan",
     )
 
+
 class DocumentFile(Base, TimestampMixin):
     __tablename__ = "document_files"
-    __table_args__ = (
-        Index("ix_document_files_workspace_document", "workspace_id", "document_id"),
-    )
+    __table_args__ = (Index("ix_document_files_workspace_document", "workspace_id", "document_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
@@ -142,11 +141,10 @@ class DocumentFile(Base, TimestampMixin):
 
     document: Mapped[Document] = relationship(back_populates="files")
 
+
 class IngestionJob(Base, TimestampMixin):
     __tablename__ = "ingestion_jobs"
-    __table_args__ = (
-        Index("ix_ingestion_jobs_workspace_status", "workspace_id", "status"),
-    )
+    __table_args__ = (Index("ix_ingestion_jobs_workspace_status", "workspace_id", "status"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
@@ -160,6 +158,7 @@ class IngestionJob(Base, TimestampMixin):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="jobs")
+
 
 class DocumentChunk(Base, TimestampMixin):
     __tablename__ = "document_chunks"
@@ -190,9 +189,7 @@ class DocumentChunk(Base, TimestampMixin):
 
 class ConversationMessage(Base, TimestampMixin):
     __tablename__ = "conversation_messages"
-    __table_args__ = (
-        Index("ix_conversation_messages_workspace", "workspace_id"),
-    )
+    __table_args__ = (Index("ix_conversation_messages_workspace", "workspace_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
