@@ -25,7 +25,7 @@ class DocumentRepository:
         self.db.add(document)
         self.db.flush()
         return document
-    
+
     def update_document_status(
         self,
         document: Document,
@@ -34,7 +34,7 @@ class DocumentRepository:
         document.status = status.value
         self.db.flush()
         return document
-    
+
     def create_document_file(
         self,
         workspace_id: str,
@@ -93,7 +93,7 @@ class DocumentRepository:
         self.db.add(job)
         self.db.flush()
         return job
-    
+
     def update_ingestion_job_status(
         self,
         job: IngestionJob,

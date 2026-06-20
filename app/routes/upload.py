@@ -34,7 +34,6 @@ def get_file_storage() -> LocalFileStorage:
     response_model=UploadDocumentResponse,
     status_code=status.HTTP_201_CREATED,
 )
-
 async def upload_document(
     workspace_id: str,
     file: UploadFile = File(...),

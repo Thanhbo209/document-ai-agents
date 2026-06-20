@@ -13,6 +13,7 @@ app = FastAPI(
 
 app.include_router(upload_router, prefix="/api/v1")
 
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {
