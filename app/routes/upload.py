@@ -9,7 +9,9 @@ from app.db.models import IngestionJob, Workspace
 from app.db.session import get_db
 from app.ingestion.errors import ExtractionError, UnsupportedFileTypeError
 from app.ingestion.loader import detect_input_type, load_document
+from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
+from app.processing.chunker import chunk_document
 from app.repositories.documents import DocumentRepository
 from app.storage.local import LocalFileStorage
 
@@ -120,17 +122,26 @@ async def upload_document(
             title=document.title,
         )
 
-        for index, block in enumerate(normalized_document.blocks):
+        chunking_config = ChunkingConfig(
+            max_tokens=settings.chunk_max_tokens,
+            overlap_tokens=settings.chunk_overlap_tokens,
+        )
+        chunks = chunk_document(
+            document=normalized_document,
+            config=chunking_config,
+        )
+
+        for index, chunk in enumerate(chunks):
             document_repo.add_chunk(
                 workspace_id=workspace_id,
                 document_id=document.id,
                 chunk_index=index,
-                text=block.text,
-                source_page=block.source_page,
-                source_start_offset=block.source_start_offset,
-                source_end_offset=block.source_end_offset,
-                token_count=len(block.text.split()),
-                source_metadata=block.metadata,
+                text=chunk.text,
+                source_page=chunk.source_page,
+                source_start_offset=chunk.source_start_offset,
+                source_end_offset=chunk.source_end_offset,
+                token_count=chunk.token_count,
+                source_metadata=chunk.metadata,
             )
 
         document_repo.update_document_status(document, DocumentStatus.INDEXED)
@@ -142,7 +153,7 @@ async def upload_document(
             file_id=document_file.id,
             job_id=job.id,
             status=job.status,
-            chunks_created=len(normalized_document.blocks),
+            chunks_created=len(chunks),
         )
 
     except ExtractionError as exc:
