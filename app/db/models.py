@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -225,3 +226,45 @@ class Citation(Base, TimestampMixin):
 
     message: Mapped[ConversationMessage] = relationship(back_populates="citations")
     chunk: Mapped[DocumentChunk] = relationship(back_populates="citations")
+
+
+class ReviewItem(Base, TimestampMixin):
+    __tablename__ = "review_items"
+    __table_args__ = (
+        Index("ix_review_items_workspace_status", "workspace_id", "status"),
+        Index("ix_review_items_target", "target_type", "target_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+
+    target_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    target_id: Mapped[str] = mapped_column(String(36), nullable=False)
+
+    field_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    original_value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    reviewed_value: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    reviewer_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class AuditEvent(Base, TimestampMixin):
+    __tablename__ = "audit_events"
+    __table_args__ = (
+        Index("ix_audit_events_workspace", "workspace_id"),
+        Index("ix_audit_events_entity", "entity_type", "entity_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    entity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
