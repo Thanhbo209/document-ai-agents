@@ -10,6 +10,23 @@ class CitationValidationError(ValueError):
     pass
 
 
+def normalize_citation_placement(message: str) -> str:
+    """Move trailing citation markers into the sentence they support.
+
+    Converts:
+        "Refunds are allowed. [S1]"
+    Into:
+        "Refunds are allowed [S1]."
+
+    This makes validation tolerant of common citation formatting.
+    """
+    return re.sub(
+        r"([.!?])\s+((?:\[S\d+\]\s*)+)",
+        r" \2\1",
+        message,
+    )
+
+
 def extract_source_refs(message: str) -> list[str]:
     refs = _CITATION_PATTERN.findall(message)
     seen: set[str] = set()
@@ -26,7 +43,8 @@ def extract_source_refs(message: str) -> list[str]:
 
 
 def validate_cited_claims(message: str) -> None:
-    claim_sentences = _claim_sentences(message)
+    normalized_message = normalize_citation_placement(message)
+    claim_sentences = _claim_sentences(normalized_message)
 
     for sentence in claim_sentences:
         if not _CITATION_PATTERN.search(sentence):
