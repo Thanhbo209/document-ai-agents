@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { uploadDocument } from "../../lib/api";
+import { uploadDocument } from "../../lib/upload-api";
 
 type UploadDropzoneProps = {
   workspaceId: string;

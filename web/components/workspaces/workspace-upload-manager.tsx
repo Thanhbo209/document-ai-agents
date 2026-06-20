@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { listDocuments, WorkspaceDocument } from "../../lib/api";
 import { UploadDropzone } from "../upload/upload-dropzone";
 import { JobProgressCards } from "../upload/job-progress-cards";
 import { DocumentTable } from "../documents/document-table";
+import { listDocuments, WorkspaceDocument } from "../../lib/upload-api";
 
 type WorkspaceUploadManagerProps = {
   workspaceId: string;
