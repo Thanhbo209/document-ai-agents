@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.answers.generator import GroundedAnswerGenerator
+from app.answers.generator import GroundedAnswerGenerationError, GroundedAnswerGenerator
 from app.answers.types import AnswerCitation, AnswerSource, GroundedAnswer
 from app.db.models import Document, Workspace
 from app.db.session import get_db
@@ -138,10 +138,19 @@ def _run_query(
         top_k=request.top_k,
     )
 
-    answer = GroundedAnswerGenerator(LocalGroundedLLMClient()).generate(
-        query=request.query,
-        retrieved_chunks=retrieved_chunks,
-    )
+    try:
+        answer = GroundedAnswerGenerator(LocalGroundedLLMClient()).generate(
+            query=request.query,
+            retrieved_chunks=retrieved_chunks,
+        )
+    except GroundedAnswerGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "message": "Grounded answer validation failed.",
+                "error": str(exc),
+            },
+        ) from exc
 
     user_message_id, assistant_message_id = _persist_conversation(
         db=db,
