@@ -26,3 +26,5 @@ def ensure_job_transition(current: JobStatus | str, target: JobStatus | str) -> 
         raise InvalidJobStatusTransition(
             f"Cannot transition ingestion job from {current!s} to {target!s}"
         )
+
+

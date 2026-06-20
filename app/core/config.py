@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     environment: str = Field(default="local")
     debug: bool = Field(default=True)
     api_version: str = Field(default="v1")
+    upload_dir: str = Field(default="storage/uploads")
+    max_upload_size_bytes: int = Field(default=10 * 1024 * 1024)
 
     # tests and local boot should work without Docker using SQLite
     database_url: str = Field(default="sqlite:///./rag_platform.db")
