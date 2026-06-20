@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { listDocuments, WorkspaceDocument } from "../../lib/api";
 import { UploadDropzone } from "../upload/upload-dropzone";
 import { JobProgressCards } from "../upload/job-progress-cards";
 import { DocumentTable } from "../documents/document-table";
+import { listDocuments, WorkspaceDocument } from "../../lib/upload-api";
+import Link from "next/link";
 
 type WorkspaceUploadManagerProps = {
   workspaceId: string;
@@ -56,6 +57,12 @@ export function WorkspaceUploadManager({
           document metadata.
         </p>
         <p className="mt-3 font-mono text-xs text-slate-400">{workspaceId}</p>
+        <Link
+          href={`/chat/${workspaceId}`}
+          className="mt-4 inline-flex rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white"
+        >
+          Open chat
+        </Link>
       </header>
 
       <div className="grid gap-6">

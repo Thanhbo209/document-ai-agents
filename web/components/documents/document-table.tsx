@@ -1,4 +1,4 @@
-import type { WorkspaceDocument } from "../../lib/api";
+import { WorkspaceDocument } from "../../lib/upload-api";
 
 type DocumentTableProps = {
   documents: WorkspaceDocument[];

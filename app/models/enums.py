@@ -15,7 +15,7 @@ class DocumentStatus(StrEnum):
 
 class MessageRole(StrEnum):
     USER = "user"
-    ASSISTANT = "assisstant"
+    ASSISTANT = "assistant"
     SYSTEM = "system"
 
 

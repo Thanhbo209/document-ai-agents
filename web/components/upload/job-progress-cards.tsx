@@ -1,4 +1,4 @@
-import { WorkspaceDocument } from "../../lib/api";
+import { WorkspaceDocument } from "../../lib/upload-api";
 
 type JobProgressCardsProps = {
   documents: WorkspaceDocument[];
