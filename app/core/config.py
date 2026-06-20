@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     # tests and local boot should work without Docker using SQLite
     database_url: str = Field(default="sqlite:///./rag_platform.db")
 
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="RAG_PLATFORM_",
