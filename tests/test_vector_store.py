@@ -1,5 +1,5 @@
 from app.storage.collections import workspace_collection_name
-from app.storage.memory_vector_store import InMemoryVectorStore
+from app.storage.memory_vector_store import InMemoryVectorStore, cosine_similarity
 from app.storage.vector_store import VectorRecord
 
 
@@ -92,3 +92,74 @@ def test_in_memory_vector_store_deletes_by_document_id() -> None:
 
     assert len(records) == 1
     assert records[0].metadata["document_id"] == "doc-2"
+
+
+def test_cosine_similarity_scores_identical_vectors_highest() -> None:
+    assert cosine_similarity([1.0, 0.0], [1.0, 0.0]) == 1.0
+    assert cosine_similarity([1.0, 0.0], [0.0, 1.0]) == 0.0
+
+
+def test_in_memory_vector_store_search_returns_top_k_by_score() -> None:
+    store = InMemoryVectorStore()
+    collection = "workspace_1"
+
+    store.upsert(
+        collection,
+        [
+            VectorRecord(
+                id="chunk-1",
+                vector=[1.0, 0.0],
+                text="Alpha",
+                metadata={"document_id": "doc-1"},
+            ),
+            VectorRecord(
+                id="chunk-2",
+                vector=[0.0, 1.0],
+                text="Beta",
+                metadata={"document_id": "doc-2"},
+            ),
+        ],
+    )
+
+    results = store.search(
+        collection_name=collection,
+        query_vector=[1.0, 0.0],
+        top_k=1,
+    )
+
+    assert len(results) == 1
+    assert results[0].record.id == "chunk-1"
+    assert results[0].score == 1.0
+
+
+def test_in_memory_vector_store_search_applies_metadata_filter() -> None:
+    store = InMemoryVectorStore()
+    collection = "workspace_1"
+
+    store.upsert(
+        collection,
+        [
+            VectorRecord(
+                id="chunk-1",
+                vector=[1.0, 0.0],
+                text="Alpha",
+                metadata={"document_id": "doc-1"},
+            ),
+            VectorRecord(
+                id="chunk-2",
+                vector=[1.0, 0.0],
+                text="Beta",
+                metadata={"document_id": "doc-2"},
+            ),
+        ],
+    )
+
+    results = store.search(
+        collection_name=collection,
+        query_vector=[1.0, 0.0],
+        top_k=10,
+        metadata_filter={"document_id": "doc-2"},
+    )
+
+    assert len(results) == 1
+    assert results[0].record.id == "chunk-2"
