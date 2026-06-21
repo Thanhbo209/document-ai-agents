@@ -172,33 +172,33 @@
         "metadata": {
           "filename": "shipping.txt"
         }
-      },
-      {
-        "id": "qa_elon_musk_2002",
-        "query": "What did Elon Musk do in 2002?",
-        "sources": [
-          {
-            "source_id": "S1",
-            "chunk_id": "chunk-elon-2002",
-            "document_id": "doc-elon",
-            "workspace_id": "workspace-eval",
-            "text": "In 2002, Elon Musk founded SpaceX with the goal of reducing space transportation costs.",
-            "source_page": null,
-            "source_start_offset": 0,
-            "source_end_offset": 94,
-            "score": 0.95,
-            "metadata": {
-              "filename": "elon.txt"
-            }
-          }
-        ],
-        "required_answer_terms": ["2002", "founded SpaceX"],
-        "required_citations": ["S1"],
-        "expect_no_answer": false
       }
     ],
     "required_answer_terms": ["14 days", "five business days"],
     "required_citations": ["S1", "S2"],
+    "expect_no_answer": false
+  },
+  {
+    "id": "qa_elon_musk_2002",
+    "query": "What did Elon Musk do in 2002?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-elon-2002",
+        "document_id": "doc-elon",
+        "workspace_id": "workspace-eval",
+        "text": "In 2002, Elon Musk founded SpaceX with the goal of reducing space transportation costs.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 94,
+        "score": 0.95,
+        "metadata": {
+          "filename": "elon.txt"
+        }
+      }
+    ],
+    "required_answer_terms": ["2002", "founded SpaceX"],
+    "required_citations": ["S1"],
     "expect_no_answer": false
   }
 ]
