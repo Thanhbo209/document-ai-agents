@@ -8,13 +8,14 @@ import {
   type WorkspaceSettings,
 } from "../../lib/workspace-settings-api";
 import { DashboardShell } from "../layout/dashboard-shell";
-import { Button } from "../ui/button";
-import { EmptyState } from "../ui/empty-state";
 import { ErrorState } from "../ui/error-state";
 import { LoadingState } from "../ui/loading-state";
 import { PageHeader } from "../ui/page-header";
-import { StatCard } from "../ui/stat-card";
-import { StatusBadge } from "../ui/status-badge";
+import { EmptyState } from "../ui/empty-state";
+import { WorkspaceOverviewCard } from "./workspace-overview-card";
+import { DataExportCard } from "./data-export-card";
+import { DangerZoneCard } from "./danger-zone-card";
+import { ComplianceNoteCard } from "./compliance-note-card";
 
 type WorkspaceSettingsDashboardProps = {
   workspaceId: string;
@@ -61,8 +62,11 @@ export function WorkspaceSettingsDashboard({
 
     try {
       const payload = await exportWorkspaceData(workspaceId);
-      downloadJson(payload, `workspace-${workspaceId}-export.json`);
-      setSuccessMessage("Workspace data export generated.");
+      downloadJson(
+        payload,
+        `workspace-export-${new Date().toISOString().split("T")[0]}.json`,
+      );
+      setSuccessMessage("Workspace data export downloaded.");
       await refresh();
     } catch (error) {
       setErrorMessage(
@@ -76,14 +80,6 @@ export function WorkspaceSettingsDashboard({
   }
 
   async function handleDeleteRequest() {
-    const confirmed = window.confirm(
-      "Request workspace deletion? Normal workspace usage will be disabled while deletion is pending.",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
     setIsRequestingDeletion(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -91,13 +87,15 @@ export function WorkspaceSettingsDashboard({
     try {
       await requestWorkspaceDeletion(workspaceId, reason);
       setReason("");
-      setSuccessMessage("Workspace deletion request recorded.");
+      setSuccessMessage(
+        "Workspace removal request recorded. Normal operations will be disabled.",
+      );
       await refresh();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Could not request workspace deletion.",
+          : "Could not submit the removal request.",
       );
     } finally {
       setIsRequestingDeletion(false);
@@ -107,17 +105,14 @@ export function WorkspaceSettingsDashboard({
   return (
     <DashboardShell
       activeItem="settings"
-      title="Workspace settings"
-      description="Manage data export and workspace lifecycle controls."
+      title="Settings"
+      description="Manage workspace data controls and lifecycle."
       workspaceId={workspaceId}
     >
       <PageHeader
         kicker="Settings"
         title="Data controls and lifecycle"
-        description="Export workspace-owned data, review retention notes, and request soft deletion when a workspace is no longer needed."
-        meta={
-          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
-        }
+        description="Export your workspace data, review compliance notes, and manage the workspace lifecycle."
       />
 
       {errorMessage && (
@@ -127,113 +122,70 @@ export function WorkspaceSettingsDashboard({
       )}
 
       {successMessage && (
-        <div className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200">
+        <div className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:ring-emerald-800">
           {successMessage}
         </div>
       )}
 
       {isLoading ? (
-        <LoadingState title="Loading workspace settings" />
+        <LoadingState title="Loading settings" rows={3} />
       ) : settings ? (
         <div className="space-y-6">
-          <section className="grid grid-flow-dense gap-4 md:grid-cols-3">
-            <StatCard
-              label="Workspace"
-              value={settings.name}
-              detail="Manage permission required"
-            />
-            <StatCard
-              label="Lifecycle status"
-              value={settings.status}
-              detail="Normal usage requires active status"
-              tone={settings.status === "active" ? "good" : "warning"}
-            />
-            <StatCard
-              label="Current plan"
-              value={settings.plan?.display_name ?? "-"}
-              detail={settings.plan?.status ?? "No subscription"}
-            />
-          </section>
+          {/* Workspace info — masked ID, no raw UUID */}
+          <WorkspaceOverviewCard settings={settings} />
 
-          <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border/70">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  Compliance and data controls
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-card-foreground">
-                  Workspace-owned export
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  This JSON export includes workspace-owned records, including
-                  document chunks and conversation messages. Admin/support
-                  metadata views remain content-restricted.
-                </p>
-              </div>
-              <Button disabled={isExporting} onClick={() => void handleExport()}>
-                {isExporting ? "Exporting" : "Export workspace data"}
-              </Button>
-            </div>
-          </section>
+          {/* Retention notes */}
+          {settings.retention_notes.length > 0 && (
+            <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border/70">
+              <p className="text-sm font-medium text-muted-foreground">
+                Data retention
+              </p>
+              <h3 className="mt-1 text-xl font-semibold tracking-tight text-card-foreground">
+                Retention notes
+              </h3>
+              <ul className="mt-4 space-y-2">
+                {settings.retention_notes.map((note) => (
+                  <li
+                    key={note}
+                    className="flex items-start gap-2.5 rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mt-0.5 h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    >
+                      <path d="M9 12h6M12 9v6" />
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-          <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border/70">
-            <p className="text-sm font-medium text-muted-foreground">
-              Retention notes
-            </p>
-            <div className="mt-4 grid gap-3">
-              {settings.retention_notes.map((note) => (
-                <div
-                  key={note}
-                  className="rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground"
-                >
-                  {note}
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Compliance note */}
+          <ComplianceNoteCard />
 
-          <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-destructive/25">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-destructive">
-                  Danger zone
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold tracking-tight text-card-foreground">
-                  Request workspace deletion
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  This is a soft-delete request. It disables normal workspace
-                  usage while preserving rows for future retention and deletion
-                  workflows.
-                </p>
-              </div>
-              <StatusBadge status={settings.status} />
-            </div>
+          {/* Data export */}
+          <DataExportCard
+            isExporting={isExporting}
+            onExport={() => void handleExport()}
+          />
 
-            <textarea
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Optional reason for the deletion request"
-              className="mt-5 min-h-28 w-full rounded-2xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-ring"
-            />
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                variant="danger"
-                disabled={
-                  isRequestingDeletion || settings.status !== "active"
-                }
-                onClick={() => void handleDeleteRequest()}
-              >
-                {isRequestingDeletion
-                  ? "Requesting"
-                  : "Request workspace deletion"}
-              </Button>
-              <Button variant="secondary" onClick={() => void refresh()}>
-                Refresh status
-              </Button>
-            </div>
-          </section>
+          {/* Danger zone — inline confirmation, no window.confirm */}
+          <DangerZoneCard
+            workspaceStatus={settings.status}
+            isRequestingDeletion={isRequestingDeletion}
+            reason={reason}
+            onReasonChange={setReason}
+            onConfirmDelete={() => void handleDeleteRequest()}
+          />
         </div>
       ) : (
         <EmptyState

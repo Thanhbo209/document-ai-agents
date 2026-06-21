@@ -15,13 +15,15 @@ import { EmptyState } from "../ui/empty-state";
 import { ErrorState } from "../ui/error-state";
 import { LoadingState } from "../ui/loading-state";
 import { PageHeader } from "../ui/page-header";
-import { StatusBadge } from "../ui/status-badge";
+import { ChatMessage } from "./chat-message";
+import { ChatThinkingState } from "./chat-thinking-state";
+import { TargetDocumentCard } from "./target-document-card";
 
 type ChatPanelProps = {
   workspaceId: string;
 };
 
-type ChatMessage = {
+type ChatMessageData = {
   id: string;
   role: "user" | "assistant";
   content: string;
@@ -34,33 +36,28 @@ type ChatMessage = {
 export function ChatPanel({ workspaceId }: ChatPanelProps) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [input, setInput] = useState("");
   const [isDocumentsLoading, setIsDocumentsLoading] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<QuerySource | null>(
-    null,
-  );
+  const [selectedSource, setSelectedSource] = useState<QuerySource | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedCount = selectedDocumentIds.length;
 
   const sourceById = useMemo(() => {
     const map = new Map<string, QuerySource>();
-
     for (const message of messages) {
       for (const source of message.sources ?? []) {
         map.set(source.source_id, source);
       }
     }
-
     return map;
   }, [messages]);
 
   useEffect(() => {
     async function loadDocuments() {
       setIsDocumentsLoading(true);
-
       try {
         const response = await listDocuments(workspaceId);
         setDocuments(response.documents);
@@ -72,7 +69,6 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
         setIsDocumentsLoading(false);
       }
     }
-
     void loadDocuments();
   }, [workspaceId]);
 
@@ -80,22 +76,19 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
     event.preventDefault();
 
     const trimmed = input.trim();
-
-    if (!trimmed || isStreaming) {
-      return;
-    }
+    if (!trimmed || isStreaming) return;
 
     setErrorMessage(null);
     setInput("");
 
-    const userMessage: ChatMessage = {
+    const userMessage: ChatMessageData = {
       id: crypto.randomUUID(),
       role: "user",
       content: trimmed,
     };
 
     const assistantMessageId = crypto.randomUUID();
-    const assistantMessage: ChatMessage = {
+    const assistantMessage: ChatMessageData = {
       id: assistantMessageId,
       role: "assistant",
       content: "",
@@ -118,13 +111,10 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
         {
           onToken: (text) => {
             setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantMessageId
-                  ? {
-                      ...message,
-                      content: message.content + text,
-                    }
-                  : message,
+              current.map((msg) =>
+                msg.id === assistantMessageId
+                  ? { ...msg, content: msg.content + text }
+                  : msg,
               ),
             );
           },
@@ -148,10 +138,10 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
     response: QueryResponse,
   ) {
     setMessages((current) =>
-      current.map((message) =>
-        message.id === assistantMessageId
+      current.map((msg) =>
+        msg.id === assistantMessageId
           ? {
-              ...message,
+              ...msg,
               id: response.assistant_message_id,
               content: response.message,
               citations: response.citations,
@@ -159,7 +149,7 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
               confidence: response.confidence,
               reviewFlags: response.review_flags,
             }
-          : message,
+          : msg,
       ),
     );
   }
@@ -176,19 +166,17 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
     <DashboardShell
       activeItem="chat"
       title="Grounded chat"
-      description="Ask questions against indexed workspace documents and inspect cited sources."
+      description="Ask questions against your indexed documents and inspect cited sources."
       workspaceId={workspaceId}
     >
       <PageHeader
         kicker="Chat"
-        title="Ask questions with evidence in reach"
-        description="Scope retrieval to selected documents or search the whole workspace. Streaming answers keep citations attached to the response."
-        meta={
-          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
-        }
+        title="Ask questions, get cited answers"
+        description="Select specific documents to focus retrieval, or search your whole workspace. Answers include clickable source references."
       />
 
       <div className="grid gap-6 xl:grid-cols-[22rem_1fr]">
+        {/* Retrieval scope sidebar */}
         <aside className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -207,92 +195,76 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             {selectedCount === 0
               ? "Searching all indexed documents."
-              : `Searching ${selectedCount} selected document(s).`}
+              : `Searching ${selectedCount} selected ${selectedCount === 1 ? "document" : "documents"}.`}
           </p>
 
           <div className="mt-5 space-y-2">
             {isDocumentsLoading ? (
-              <LoadingState title="Loading scope" rows={3} />
+              <LoadingState title="Loading documents" rows={3} />
             ) : documents.length === 0 ? (
               <EmptyState
                 title="No documents indexed"
                 description="Upload source files before starting a grounded chat."
                 action={
-                  <Button href={`/workspaces/${workspaceId}#documents`}>
+                  <Button href={`/documents/${workspaceId}`}>
                     Upload documents
                   </Button>
                 }
               />
             ) : (
               documents.map((document) => (
-                <label
+                <TargetDocumentCard
                   key={document.id}
-                  className="group flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-background/70 p-3 transition duration-200 hover:-translate-y-0.5 hover:bg-accent"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedDocumentIds.includes(document.id)}
-                    onChange={() => toggleDocument(document.id)}
-                    className="mt-1 accent-primary"
-                  />
-
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-card-foreground">
-                      {document.title}
-                    </span>
-                    <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <StatusBadge status={document.status} />
-                      <span>{document.source_type}</span>
-                      <span>{document.chunk_count} chunks</span>
-                    </span>
-                  </span>
-                </label>
+                  document={document}
+                  isSelected={selectedDocumentIds.includes(document.id)}
+                  onToggle={() => toggleDocument(document.id)}
+                />
               ))
             )}
           </div>
         </aside>
 
+        {/* Conversation panel */}
         <section className="flex min-h-[calc(100dvh-12rem)] flex-col overflow-hidden rounded-3xl bg-card shadow-sm ring-1 ring-border/70">
           <div className="border-b border-border px-5 py-4">
             <p className="text-sm font-medium text-muted-foreground">
-              Streaming session
+              Conversation
             </p>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-card-foreground">
-              Conversation
+              Chat session
             </h2>
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto bg-muted/30 px-4 py-5 sm:px-6">
-            {messages.length === 0 && (
+            {messages.length === 0 && !isStreaming && (
               <EmptyState
                 title="Ask your first question"
                 description="Try asking what a policy says, where a clause appears, or which source supports an answer."
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="h-7 w-7" aria-hidden="true">
+                    <path d="M5 6.5A3.5 3.5 0 0 1 8.5 3h7A3.5 3.5 0 0 1 19 6.5v4A3.5 3.5 0 0 1 15.5 14H11l-4.5 4v-4.5A3.5 3.5 0 0 1 5 10.5v-4Z" />
+                  </svg>
+                }
               />
             )}
 
             {messages.map((message) => (
-              <article
+              <ChatMessage
                 key={message.id}
-                className={[
-                  "rounded-3xl p-5 shadow-sm",
-                  message.role === "user"
-                    ? "ml-auto max-w-2xl bg-primary text-primary-foreground"
-                    : "mr-auto max-w-3xl bg-card text-card-foreground ring-1 ring-border",
-                ].join(" ")}
-              >
-                <p className="whitespace-pre-wrap leading-7">
-                  {message.content || "Thinking..."}
-                </p>
-
-                {message.role === "assistant" && (
-                  <AssistantMetadata
-                    message={message}
-                    sourceById={sourceById}
-                    onOpenSource={setSelectedSource}
-                  />
-                )}
-              </article>
+                messageId={message.id}
+                role={message.role}
+                content={message.content}
+                citations={message.citations}
+                sources={message.sources}
+                confidence={message.confidence}
+                reviewFlags={message.reviewFlags}
+                sourceById={sourceById}
+                onOpenSource={setSelectedSource}
+              />
             ))}
+
+            {/* Thinking state shown below last message while streaming */}
+            <ChatThinkingState isThinking={isStreaming} />
           </div>
 
           {errorMessage && (
@@ -307,10 +279,13 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
           >
             <div className="flex gap-3">
               <input
+                id="chat-input"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder="Ask a question about your documents..."
-                className="min-w-0 flex-1 rounded-2xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-ring"
+                disabled={isStreaming}
+                className="min-w-0 flex-1 rounded-2xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-50"
+                aria-label="Chat input"
               />
 
               <Button
@@ -318,7 +293,7 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
                 disabled={isStreaming || !input.trim()}
                 className="px-5"
               >
-                {isStreaming ? "Streaming" : "Ask"}
+                {isStreaming ? "Sending\u2026" : "Ask"}
               </Button>
             </div>
           </form>
@@ -330,58 +305,5 @@ export function ChatPanel({ workspaceId }: ChatPanelProps) {
         onClose={() => setSelectedSource(null)}
       />
     </DashboardShell>
-  );
-}
-
-function AssistantMetadata({
-  message,
-  sourceById,
-  onOpenSource,
-}: {
-  message: ChatMessage;
-  sourceById: Map<string, QuerySource>;
-  onOpenSource: (source: QuerySource) => void;
-}) {
-  if (!message.citations?.length && message.confidence === undefined) {
-    return null;
-  }
-
-  return (
-    <div className="mt-4 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        {message.confidence !== undefined && (
-          <span>Confidence: {message.confidence.toFixed(2)}</span>
-        )}
-
-        {message.reviewFlags?.map((flag) => (
-          <StatusBadge key={flag} status={flag} />
-        ))}
-      </div>
-
-      {message.citations && message.citations.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {message.citations.map((citation) => {
-            const source = sourceById.get(citation.source_id);
-
-            return (
-              <button
-                key={`${message.id}-${citation.source_id}`}
-                type="button"
-                disabled={!source}
-                onClick={() => {
-                  if (source) {
-                    onOpenSource(source);
-                  }
-                }}
-                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-              >
-                {citation.source_id}
-                {citation.source_page ? ` · page ${citation.source_page}` : ""}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }

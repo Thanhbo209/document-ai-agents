@@ -122,8 +122,8 @@ export function buildWorkspaceNavItems(workspaceId: string): DashboardNavItem[] 
       id: "documents",
       label: "Documents",
       icon: DocumentsIcon,
-      href: `/workspaces/${workspaceId}#documents`,
-      detail: "Upload and ingestion",
+      href: `/documents/${workspaceId}`,
+      detail: "Browse and upload",
     },
     {
       id: "chat",
