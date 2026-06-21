@@ -23,6 +23,7 @@ class AuthUserResponse(BaseModel):
     id: str
     email: str
     display_name: str | None
+    is_platform_admin: bool
     workspaces: list[AuthWorkspaceResponse]
 
 
@@ -151,6 +152,7 @@ def _user_response(db: Session, user: User) -> AuthUserResponse:
         id=user.id,
         email=user.email,
         display_name=user.display_name,
+        is_platform_admin=user.is_platform_admin,
         workspaces=[
             AuthWorkspaceResponse(
                 id=workspace.id,

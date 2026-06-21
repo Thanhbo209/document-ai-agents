@@ -28,6 +28,7 @@ export type AuthUser = {
   id: string;
   email: string;
   display_name: string | null;
+  is_platform_admin: boolean;
   workspaces: AuthWorkspace[];
 };
 
