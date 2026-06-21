@@ -38,6 +38,7 @@ export function MobileSidebar({
           activeItem={activeItem}
           workspaceId={workspaceId}
           mode={mode}
+          showCollapseToggle={false}
           onNavigate={onClose}
         />
       </div>

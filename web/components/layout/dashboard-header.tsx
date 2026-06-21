@@ -1,3 +1,5 @@
+import { MenuIcon } from "../icons/dashboard-icons";
+
 type DashboardHeaderProps = {
   title: string;
   eyebrow?: string;
@@ -32,10 +34,12 @@ export function DashboardHeader({
 
         <button
           type="button"
+          aria-label="Open navigation menu"
           onClick={onOpenSidebar}
-          className="inline-flex items-center rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-accent active:translate-y-0 lg:hidden"
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-card-foreground shadow-sm transition hover:-translate-y-0.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:translate-y-0 lg:hidden"
         >
-          Menu
+          <MenuIcon className="h-4 w-4" />
+          <span>Menu</span>
         </button>
       </div>
     </header>
