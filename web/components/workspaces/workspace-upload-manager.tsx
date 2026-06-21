@@ -69,6 +69,12 @@ export function WorkspaceUploadManager({
         >
           View usage
         </Link>
+        <Link
+          href={`/billing/${workspaceId}`}
+          className="mt-2 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+        >
+          View billing
+        </Link>
       </header>
 
       <div className="grid gap-6">

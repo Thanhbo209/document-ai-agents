@@ -1,0 +1,11 @@
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.git
+web/.next
+web/node_modules
+storage/uploads
+rag_platform.db
+evals/reports/latest.json
+.env

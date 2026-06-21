@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import User, Workspace, WorkspaceMember
+from app.db.models import User, Workspace, WorkspaceMember, WorkspaceSubscription
 from app.models.enums import WorkspaceRole
 
 
@@ -48,6 +48,14 @@ class WorkspaceRepository:
             role=WorkspaceRole.OWNER.value,
         )
         self.db.add(membership)
+        self.db.flush()
+
+        subscription = WorkspaceSubscription(
+            workspace_id=workspace.id,
+            plan_name="free",
+            status="active",
+        )
+        self.db.add(subscription)
         self.db.flush()
 
         return workspace

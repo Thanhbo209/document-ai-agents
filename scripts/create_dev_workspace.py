@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
 from app.auth.security import hash_password
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.db.models import User, Workspace
 from app.db.session import SessionLocal
 from app.repositories.workspaces import WorkspaceRepository
@@ -35,6 +36,11 @@ def main() -> None:
                 name="Dev Workspace",
                 owner_user_id=user.id,
             )
+
+        WorkspaceSubscriptionRepository(db).get_or_create_subscription(
+            workspace_id=workspace.id,
+            actor_user_id=user.id,
+        )
 
         db.commit()
 

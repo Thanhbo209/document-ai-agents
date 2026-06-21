@@ -30,20 +30,6 @@ class WorkspaceLimitPolicy:
     concurrent_job_limit: int
 
 
-FREE_WORKSPACE_POLICY = WorkspaceLimitPolicy(
-    storage_bytes_limit=100 * 1024 * 1024,
-    documents_limit=100,
-    daily_query_limit=100,
-    monthly_embedding_token_limit=500_000,
-    monthly_llm_token_limit=500_000,
-    concurrent_job_limit=2,
-)
-
-
-def get_workspace_limit_policy() -> WorkspaceLimitPolicy:
-    return FREE_WORKSPACE_POLICY
-
-
 def assert_within_limit(
     metric_name: str,
     current: int,

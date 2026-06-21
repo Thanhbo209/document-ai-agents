@@ -3,7 +3,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import UsageEvent
-from app.limits.policies import WorkspaceLimitPolicy
 from app.repositories.documents import DocumentRepository
 from app.repositories.workspaces import WorkspaceRepository
 from tests.helpers import create_authenticated_workspace
@@ -155,20 +154,24 @@ def test_upload_records_usage_metrics(
 def test_upload_returns_429_when_quota_is_exceeded(
     client: TestClient,
     db_session: Session,
-    monkeypatch,
 ) -> None:
     workspace_id, headers = create_workspace(db_session)
-    monkeypatch.setattr(
-        "app.limits.service.get_workspace_limit_policy",
-        lambda: WorkspaceLimitPolicy(
-            storage_bytes_limit=1,
-            documents_limit=100,
-            daily_query_limit=100,
-            monthly_embedding_token_limit=500_000,
-            monthly_llm_token_limit=500_000,
-            concurrent_job_limit=2,
-        ),
+    document_repo = DocumentRepository(db_session)
+    existing_document = document_repo.create_document(
+        workspace_id=workspace_id,
+        title="Existing storage",
+        source_type="text",
     )
+    document_repo.create_document_file(
+        workspace_id=workspace_id,
+        document_id=existing_document.id,
+        filename="existing.txt",
+        content_type="text/plain",
+        size_bytes=100 * 1024 * 1024,
+        storage_key="existing.txt",
+        checksum_sha256="checksum",
+    )
+    db_session.commit()
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
@@ -184,7 +187,7 @@ def test_upload_returns_429_when_quota_is_exceeded(
 
     assert response.status_code == 429
     assert response.json()["detail"]["metric_name"] == "storage.bytes"
-    assert DocumentRepository(db_session).list_documents_for_workspace(workspace_id) == []
+    assert len(DocumentRepository(db_session).list_documents_for_workspace(workspace_id)) == 1
 
 
 def test_upload_markdown_file_is_accepted(

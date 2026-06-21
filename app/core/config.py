@@ -6,9 +6,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = Field(default="Rag Platform")
+    service_name: str = Field(default="rag-platform-api")
     environment: str = Field(default="local")
     debug: bool = Field(default=True)
     api_version: str = Field(default="v1")
+    log_level: str = Field(default="INFO")
+    log_format: str = Field(default="text")
+    metrics_enabled: bool = Field(default=True)
 
     # Upload
     upload_dir: str = Field(default="storage/uploads")
