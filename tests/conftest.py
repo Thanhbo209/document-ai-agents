@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.observability.metrics import reset_metrics
 from app.repositories.workspaces import WorkspaceRepository
 from app.services.vector_runtime import get_runtime_embedder, get_runtime_vector_store
 
@@ -52,6 +53,7 @@ def client(
     def override_get_db():
         yield db_session
 
+    reset_metrics()
     app.dependency_overrides[get_db] = override_get_db
 
     try:
@@ -59,6 +61,7 @@ def client(
             yield test_client
     finally:
         app.dependency_overrides.clear()
+        reset_metrics()
 
 
 @pytest.fixture

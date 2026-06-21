@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: rag-platform-prod-postgres
+    environment:
+      POSTGRES_USER: rag_platform
+      POSTGRES_PASSWORD: CHANGE_ME_POSTGRES_PASSWORD
+      POSTGRES_DB: rag_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - rag_platform_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_platform -d rag_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rag-platform-prod-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      RAG_PLATFORM_APP_NAME: "Rag Platform"
+      RAG_PLATFORM_SERVICE_NAME: "rag-platform-api"
+      RAG_PLATFORM_ENVIRONMENT: "production"
+      RAG_PLATFORM_DEBUG: "false"
+      RAG_PLATFORM_API_VERSION: "v1"
+      RAG_PLATFORM_LOG_LEVEL: "INFO"
+      RAG_PLATFORM_LOG_FORMAT: "json"
+      RAG_PLATFORM_METRICS_ENABLED: "true"
+      RAG_PLATFORM_DATABASE_URL: "postgresql+psycopg://rag_platform:CHANGE_ME_POSTGRES_PASSWORD@postgres:5432/rag_platform"
+      RAG_PLATFORM_UPLOAD_DIR: "/app/storage/uploads"
+      RAG_PLATFORM_CORS_ALLOWED_ORIGINS: '["http://127.0.0.1:3000","http://localhost:3000"]'
+      RAG_PLATFORM_JWT_SECRET_KEY: "CHANGE_ME_USE_A_RANDOM_SECRET_AT_LEAST_32_CHARS"
+    ports:
+      - "8000:8000"
+    volumes:
+      - rag_platform_uploads:/app/storage/uploads
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000/api/v1"
+    container_name: rag-platform-prod-web
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000/api/v1"
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "3000:3000"
+
+volumes:
+  rag_platform_postgres_data:
+  rag_platform_uploads:

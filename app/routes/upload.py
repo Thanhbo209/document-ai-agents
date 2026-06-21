@@ -15,6 +15,7 @@ from app.limits.service import QuotaService, quota_error_response
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
+from app.observability.metrics import record_upload
 from app.permissions.policies import WorkspacePermission
 from app.processing.chunker import chunk_document
 from app.repositories.documents import DocumentRepository
@@ -199,6 +200,7 @@ async def upload_document(
             source_id=document.id,
         )
         db.commit()
+        record_upload()
 
         return UploadDocumentResponse(
             document_id=document.id,

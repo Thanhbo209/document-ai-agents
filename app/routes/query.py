@@ -19,6 +19,7 @@ from app.limits.service import QuotaService, quota_error_response
 from app.llm.client import LocalGroundedLLMClient
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.enums import MessageRole
+from app.observability.metrics import record_query
 from app.permissions.policies import WorkspacePermission
 from app.repositories.conversations import ConversationRepository
 from app.retrieval.filters import RetrievalFilters
@@ -212,6 +213,7 @@ def _run_query(
     )
 
     db.commit()
+    record_query()
 
     return _query_response_from_answer(
         user_message_id=user_message_id,
