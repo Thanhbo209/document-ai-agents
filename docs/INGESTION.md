@@ -13,6 +13,116 @@ answers and citations.
 - PPTX
 - CSV
 - XLSX
+- Scanned PDFs through OCR fallback
+- Images through OCR (`PNG`, `JPG`, `JPEG`, `TIFF`, `BMP`)
+
+## OCR Ingestion
+
+OCR ingestion makes scanned PDFs and image-based documents searchable. The
+implementation uses an adapter pattern so the default OCR engine can be replaced
+later without rewriting the ingestion pipeline.
+
+Default adapter:
+
+- `pytesseract`
+- `Pillow`
+- `PyMuPDF` for rendering scanned PDF pages to images
+
+Tesseract also requires a system-wide Tesseract binary. If the binary is not
+installed and OCR is required, ingestion fails with a clear error:
+
+```txt
+OCR engine unavailable. Install Tesseract or disable OCR.
+```
+
+### Scanned PDFs
+
+PDF ingestion first tries normal embedded-text extraction. If meaningful text is
+available, the normal PDF path is used and OCR is skipped. If no text is found,
+the OCR worker renders each page to a PNG artifact, preprocesses it, runs OCR,
+and converts the OCR result into `ExtractedTextBlock` records.
+
+OCR blocks include readable text such as:
+
+```txt
+OCR Page 2
+
+Scanned refund policy allows cancellation within 14 days.
+```
+
+Useful metadata:
+
+- `source_type: "ocr_pdf"`
+- `page_number`
+- `ocr: true`
+- `ocr_confidence`
+- `low_confidence`
+- `image_path`
+- `bounding_boxes`
+
+### Images
+
+Image ingestion routes supported image extensions through the same OCR worker.
+The original image is copied to artifact storage, a preprocessed PNG is created,
+and the OCR result is converted into searchable text blocks.
+
+### Image Preprocessing
+
+Preprocessing is intentionally simple and deterministic:
+
+- Open with Pillow.
+- Convert to grayscale.
+- Apply autocontrast.
+- Save a separate PNG artifact for OCR.
+
+The original rendered page/image artifact is preserved.
+
+### Confidence And Low-Confidence Flagging
+
+Tesseract token confidence values are normalized to `0.0` through `1.0`.
+Page confidence is the average confidence across valid OCR tokens. Pages below
+the configured threshold are flagged:
+
+```python
+{
+    "ocr_confidence": 0.58,
+    "low_confidence": True
+}
+```
+
+The current minimum behavior is metadata preservation. Future UI/review work can
+use this metadata to show manual review warnings.
+
+### Bounding Box Metadata
+
+OCR stores line-level bounding boxes to keep metadata useful without exploding
+chunk size:
+
+```python
+{
+    "text": "Scanned refund policy...",
+    "confidence": 0.91,
+    "bbox": {
+        "x": 10,
+        "y": 20,
+        "width": 260,
+        "height": 24
+    }
+}
+```
+
+### Artifact Storage
+
+Generated OCR artifacts are stored under:
+
+```txt
+storage/artifacts/{workspace_id}/{document_id}/ocr/page-001.png
+storage/artifacts/{workspace_id}/{document_id}/ocr/page-001-ocr.png
+storage/artifacts/{workspace_id}/{document_id}/ocr/ocr.json
+```
+
+The JSON artifact stores OCR page results, confidence, line text, and bounding
+box metadata.
 
 ## Office And Table Ingestion
 
@@ -135,7 +245,12 @@ ingestion blocks include enough metadata to support labels such as:
 
 ## Known Limitations
 
-- No OCR.
+- OCR quality depends on scan quality.
+- Handwriting may extract poorly.
+- Tables in scanned PDFs may not preserve row/column structure yet.
+- Images inside Office files are not OCR'd unless separately extracted.
+- Tesseract must be installed locally/system-wide for real OCR execution.
+- Tests use a fake OCR engine and do not require the real Tesseract binary.
 - Images inside Office files are not extracted.
 - Speaker notes and comments are not extracted.
 - Complex nested Word tables may be simplified.

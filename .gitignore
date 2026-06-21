@@ -26,8 +26,9 @@ dist/
 build/
 *.egg-info/
 
-# Local uploaded files
+# Local uploaded files and generated artifacts
 storage/
+storage/artifacts/
 
 # Local database and generated reports
 rag_platform.db

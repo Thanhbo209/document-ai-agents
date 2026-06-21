@@ -190,7 +190,7 @@ def chunk_text_block(
             **block.metadata,
             "block_index": block_index,
             "local_chunk_index": local_chunk_index,
-            "source_type": source_type.value,
+            "source_type": block.metadata.get("source_type", source_type.value),
             "chunk_strategy": "paragraph_token_window",
         }
 

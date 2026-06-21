@@ -13,6 +13,8 @@ def test_detect_input_type_for_supported_files() -> None:
     assert detect_input_type("roadmap.pptx") == InputType.PPTX
     assert detect_input_type("sales.csv") == InputType.CSV
     assert detect_input_type("workbook.xlsx") == InputType.XLSX
+    assert detect_input_type("scan.png") == InputType.IMAGE
+    assert detect_input_type("photo.jpeg") == InputType.IMAGE
 
 
 def test_detect_input_type_rejects_unsupported_file() -> None:

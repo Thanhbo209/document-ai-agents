@@ -16,10 +16,14 @@ class Settings(BaseSettings):
 
     # Upload
     upload_dir: str = Field(default="storage/uploads")
+    artifact_dir: str = Field(default="storage/artifacts")
     max_upload_size_bytes: int = Field(default=10 * 1024 * 1024)
 
     chunk_max_tokens: int = Field(default=300)
     chunk_overlap_tokens: int = Field(default=40)
+
+    ocr_enabled: bool = Field(default=True)
+    ocr_low_confidence_threshold: float = Field(default=0.65)
 
     # tests and local boot should work without Docker using SQLite
     database_url: str = Field(default="sqlite:///./rag_platform.db")
