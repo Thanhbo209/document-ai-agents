@@ -64,7 +64,7 @@ export async function listDocuments(
   }
 
   const queryString = searchParams.toString();
-  const path = `/workspaces/${workspaceId}/documents${queryString ? `${queryString}` : ""}`;
+  const path = `/workspaces/${workspaceId}/documents${queryString ? `?${queryString}` : ""}`;
 
   return apiRequest<DocumentListResponse>(path);
 }

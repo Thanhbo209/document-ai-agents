@@ -9,6 +9,13 @@ import {
   listBillingPlans,
 } from "../../lib/api";
 import { getWorkspaceUsage, UsageMetric } from "../../lib/usage-api";
+import { DashboardShell } from "../layout/dashboard-shell";
+import { Button } from "../ui/button";
+import { EmptyState } from "../ui/empty-state";
+import { ErrorState } from "../ui/error-state";
+import { LoadingState } from "../ui/loading-state";
+import { PageHeader } from "../ui/page-header";
+import { StatusBadge } from "../ui/status-badge";
 
 type BillingDashboardProps = {
   workspaceId: string;
@@ -68,82 +75,87 @@ export function BillingDashboard({ workspaceId }: BillingDashboardProps) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8">
-          <p className="text-sm font-medium text-slate-500">
-            Workspace billing
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            Plans and limits
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Internal plan switching only. Stripe is not connected yet.
-          </p>
-          <p className="mt-3 font-mono text-xs text-slate-400">
-            {workspaceId}
-          </p>
-        </header>
+    <DashboardShell
+      activeItem="billing"
+      title="Billing and plans"
+      description="Inspect internal plan limits and switch workspace plans without Stripe."
+      workspaceId={workspaceId}
+    >
+      <PageHeader
+        kicker="Billing"
+        title="Internal plan controls"
+        description="Plan switching is internal only. Stripe is not connected yet, but limits still drive quota enforcement."
+        meta={
+          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
+        }
+        actions={
+          <Button href={`/usage/${workspaceId}`} variant="secondary">
+            View usage
+          </Button>
+        }
+      />
 
-        {errorMessage && (
-          <p className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        )}
+      {errorMessage && (
+        <div className="mb-6">
+          <ErrorState message={errorMessage} />
+        </div>
+      )}
 
-        {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">
-            Loading billing...
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {summary && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-slate-500">
-                  Current plan
-                </p>
-                <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-                  <div>
-                    <h2 className="text-3xl font-bold text-slate-950">
-                      {summary.plan.display_name}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Status: {summary.subscription.status}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                    {summary.subscription.plan_name}
-                  </span>
+      {isLoading ? (
+        <LoadingState title="Loading billing" />
+      ) : (
+        <div className="space-y-6">
+          {summary && (
+            <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border/70">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Current plan
+                  </p>
+                  <h2 className="mt-2 text-4xl font-semibold tracking-tight text-card-foreground">
+                    {summary.plan.display_name}
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Subscription status: {summary.subscription.status}
+                  </p>
                 </div>
-              </section>
-            )}
-
-            <section className="grid gap-4 md:grid-cols-2">
-              {plans.map((plan) => (
-                <PlanCard
-                  key={plan.name}
-                  plan={plan}
-                  currentPlanName={summary?.subscription.plan_name}
-                  isChangingPlan={isChangingPlan}
-                  onChangePlan={(planName) => void changePlan(planName)}
-                />
-              ))}
+                <StatusBadge status={summary.subscription.plan_name} />
+              </div>
             </section>
+          )}
 
-            <section>
-              <h2 className="mb-4 text-xl font-semibold text-slate-950">
-                Current usage
-              </h2>
+          <section className="grid grid-flow-dense gap-4 lg:grid-cols-2">
+            {plans.map((plan) => (
+              <PlanCard
+                key={plan.name}
+                plan={plan}
+                currentPlanName={summary?.subscription.plan_name}
+                isChangingPlan={isChangingPlan}
+                onChangePlan={(planName) => void changePlan(planName)}
+              />
+            ))}
+          </section>
+
+          <section>
+            <h2 className="mb-4 text-xl font-semibold tracking-tight text-foreground">
+              Current usage
+            </h2>
+            {metrics.length === 0 ? (
+              <EmptyState
+                title="No usage recorded"
+                description="Usage appears here after uploads, queries, and indexing activity."
+              />
+            ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {metrics.map((metric) => (
                   <UsageMiniCard key={metric.metric_name} metric={metric} />
                 ))}
               </div>
-            </section>
-          </div>
-        )}
-      </div>
-    </main>
+            )}
+          </section>
+        </div>
+      )}
+    </DashboardShell>
   );
 }
 
@@ -161,49 +173,64 @@ function PlanCard({
   const isCurrent = plan.name === currentPlanName;
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article
+      className={[
+        "flex min-h-full flex-col rounded-3xl bg-card p-6 shadow-sm ring-1 transition duration-200 hover:-translate-y-1 hover:shadow-md",
+        isCurrent ? "ring-primary/40" : "ring-border/70",
+      ].join(" ")}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-xl font-semibold text-slate-950">
+          <h3 className="text-2xl font-semibold tracking-tight text-card-foreground">
             {plan.display_name}
           </h3>
-          <p className="mt-2 text-sm text-slate-600">{plan.description}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {plan.description}
+          </p>
         </div>
-        {isCurrent && (
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            Current
-          </span>
-        )}
+        {isCurrent && <StatusBadge status="active" />}
       </div>
 
-      <dl className="mt-5 grid gap-2 text-sm text-slate-600">
-        <LimitRow label="Storage" value={formatBytes(plan.limits.storage_bytes_limit)} />
-        <LimitRow label="Documents" value={plan.limits.documents_limit.toLocaleString()} />
-        <LimitRow label="Daily queries" value={plan.limits.daily_query_limit.toLocaleString()} />
+      <dl className="mt-6 grid gap-3 text-sm text-muted-foreground">
+        <LimitRow
+          label="Storage"
+          value={formatBytes(plan.limits.storage_bytes_limit)}
+        />
+        <LimitRow
+          label="Documents"
+          value={plan.limits.documents_limit.toLocaleString()}
+        />
+        <LimitRow
+          label="Daily queries"
+          value={plan.limits.daily_query_limit.toLocaleString()}
+        />
         <LimitRow
           label="Monthly LLM tokens"
           value={plan.limits.monthly_llm_token_limit.toLocaleString()}
         />
-        <LimitRow label="Concurrent jobs" value={plan.limits.concurrent_job_limit.toString()} />
+        <LimitRow
+          label="Concurrent jobs"
+          value={plan.limits.concurrent_job_limit.toString()}
+        />
       </dl>
 
-      <button
-        type="button"
+      <Button
         disabled={isCurrent || isChangingPlan}
         onClick={() => onChangePlan(plan.name)}
-        className="mt-5 w-full rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-200 disabled:text-slate-500"
+        className="mt-6 w-full"
+        variant={isCurrent ? "secondary" : "primary"}
       >
         {isCurrent ? "Current plan" : `Switch to ${plan.display_name}`}
-      </button>
+      </Button>
     </article>
   );
 }
 
 function LimitRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex justify-between gap-4 border-b border-border/60 pb-2 last:border-0">
       <dt>{label}</dt>
-      <dd className="font-medium text-slate-950">{value}</dd>
+      <dd className="font-mono font-medium text-card-foreground">{value}</dd>
     </div>
   );
 }
@@ -215,21 +242,17 @@ function UsageMiniCard({ metric }: { metric: UsageMetric }) {
       : null;
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">
-            {metric.metric_name}
+          <p className="text-sm font-medium text-muted-foreground">
+            {metric.metric_name.replaceAll(".", " ")}
           </p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">
+          <p className="mt-2 font-mono text-2xl font-semibold tracking-tight text-card-foreground">
             {formatQuantity(metric.current, metric.unit)}
           </p>
         </div>
-        {percentage !== null && (
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            {percentage}%
-          </span>
-        )}
+        {percentage !== null && <StatusBadge status={`${percentage}%`} />}
       </div>
     </article>
   );

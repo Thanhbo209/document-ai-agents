@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { uploadDocument } from "../../lib/upload-api";
+import { ErrorState } from "../ui/error-state";
 
 type UploadDropzoneProps = {
   workspaceId: string;
@@ -16,6 +17,7 @@ export function UploadDropzone({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
 
   async function handleFiles(files: FileList | null) {
     const file = files?.[0];
@@ -26,16 +28,18 @@ export function UploadDropzone({
 
     setIsUploading(true);
     setMessage(null);
+    setIsError(false);
 
     try {
       const result = await uploadDocument(workspaceId, file);
 
       setMessage(
-        `Uploaded successfully. Job ${result.job_id} created ${result.chunks_created} chunks.`,
+        `Upload complete. Job ${result.job_id} created ${result.chunks_created} chunks.`,
       );
       onUploaded();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed.");
+      setIsError(true);
     } finally {
       setIsUploading(false);
       if (inputRef.current) {
@@ -45,7 +49,18 @@ export function UploadDropzone({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section
+      id="documents"
+      className="overflow-hidden rounded-3xl bg-card shadow-sm ring-1 ring-border/70"
+    >
+      <div className="border-b border-border px-6 py-5">
+        <p className="text-sm font-medium text-muted-foreground">
+          Document intake
+        </p>
+        <h3 className="mt-1 text-xl font-semibold tracking-tight text-card-foreground">
+          Upload and process source files
+        </h3>
+      </div>
       <div
         role="button"
         tabIndex={0}
@@ -66,10 +81,11 @@ export function UploadDropzone({
           void handleFiles(event.dataTransfer.files);
         }}
         className={[
-          "flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition",
+          "m-5 flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-12 text-center transition duration-200",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isDragging
-            ? "border-slate-900 bg-slate-100"
-            : "border-slate-300 bg-slate-50 hover:bg-slate-100",
+            ? "border-primary bg-accent"
+            : "border-border bg-muted/55 hover:-translate-y-0.5 hover:bg-accent",
         ].join(" ")}
       >
         <input
@@ -80,25 +96,35 @@ export function UploadDropzone({
           onChange={(event) => void handleFiles(event.target.files)}
         />
 
-        <p className="text-lg font-semibold text-slate-900">
+        <div className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+          UP
+        </div>
+
+        <p className="text-lg font-semibold text-card-foreground">
           Drop a document here, or click to upload
         </p>
 
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
           Supported files: TXT, Markdown, PDF. Max size follows backend config.
         </p>
 
         {isUploading && (
-          <p className="mt-4 text-sm font-medium text-slate-700">
+          <p className="mt-4 text-sm font-medium text-card-foreground">
             Uploading and processing...
           </p>
         )}
       </div>
 
       {message && (
-        <p className="mt-4 rounded-lg bg-slate-100 px-4 py-3 text-sm text-slate-700">
-          {message}
-        </p>
+        <div className="px-5 pb-5">
+          {isError ? (
+            <ErrorState message={message} />
+          ) : (
+            <p className="rounded-2xl bg-accent px-4 py-3 text-sm font-medium text-accent-foreground">
+              {message}
+            </p>
+          )}
+        </div>
       )}
     </section>
   );
