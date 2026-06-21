@@ -1,11 +1,13 @@
 from pathlib import Path
 
 from app.ingestion.errors import UnsupportedFileTypeError
+from app.ingestion.ocr import OcrEngine
 from app.ingestion.office import extract_docx_file, extract_pptx_file
-from app.ingestion.pdf import extract_pdf_file
+from app.ingestion.pdf import extract_image_file, extract_pdf_file
 from app.ingestion.tables import extract_csv_file, extract_xlsx_file
 from app.ingestion.text import extract_text_file
 from app.ingestion.types import InputType, NormalizedDocument
+from app.storage.artifacts import ArtifactStorage
 
 _EXTENSION_TO_INPUT_TYPE = {
     ".txt": InputType.TEXT,
@@ -16,6 +18,12 @@ _EXTENSION_TO_INPUT_TYPE = {
     ".pptx": InputType.PPTX,
     ".csv": InputType.CSV,
     ".xlsx": InputType.XLSX,
+    ".png": InputType.IMAGE,
+    ".jpg": InputType.IMAGE,
+    ".jpeg": InputType.IMAGE,
+    ".tiff": InputType.IMAGE,
+    ".tif": InputType.IMAGE,
+    ".bmp": InputType.IMAGE,
 }
 
 _SUPPORTED_EXTENSIONS = ", ".join(sorted(_EXTENSION_TO_INPUT_TYPE))
@@ -32,12 +40,27 @@ def detect_input_type(filename: str, content_type: str | None = None) -> InputTy
     )
 
 
-def load_document(path: Path, input_type: InputType, title: str) -> NormalizedDocument:
+def load_document(
+    path: Path,
+    input_type: InputType,
+    title: str,
+    workspace_id: str | None = None,
+    document_id: str | None = None,
+    artifact_storage: ArtifactStorage | None = None,
+    ocr_engine: OcrEngine | None = None,
+) -> NormalizedDocument:
     if input_type in {InputType.TEXT, InputType.MARKDOWN}:
         return extract_text_file(path=path, title=title, source_type=input_type)
 
     if input_type == InputType.PDF:
-        return extract_pdf_file(path=path, title=title)
+        return extract_pdf_file(
+            path=path,
+            title=title,
+            workspace_id=workspace_id,
+            document_id=document_id,
+            artifact_storage=artifact_storage,
+            ocr_engine=ocr_engine,
+        )
 
     if input_type == InputType.DOCX:
         return extract_docx_file(path=path, title=title)
@@ -50,5 +73,15 @@ def load_document(path: Path, input_type: InputType, title: str) -> NormalizedDo
 
     if input_type == InputType.XLSX:
         return extract_xlsx_file(path=path, title=title)
+
+    if input_type == InputType.IMAGE:
+        return extract_image_file(
+            path=path,
+            title=title,
+            workspace_id=workspace_id,
+            document_id=document_id,
+            artifact_storage=artifact_storage,
+            ocr_engine=ocr_engine,
+        )
 
     raise UnsupportedFileTypeError(f"Unsupported input type: {input_type}")

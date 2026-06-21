@@ -10,6 +10,7 @@ class InputType(StrEnum):
     PPTX = "pptx"
     CSV = "csv"
     XLSX = "xlsx"
+    IMAGE = "image"
 
 
 @dataclass(frozen=True)
