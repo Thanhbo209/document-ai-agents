@@ -6,6 +6,12 @@ class WorkspaceRole(StrEnum):
     MEMBER = "member"
 
 
+class WorkspaceStatus(StrEnum):
+    ACTIVE = "active"
+    PENDING_DELETION = "pending_deletion"
+    DELETED = "deleted"
+
+
 class DocumentStatus(StrEnum):
     CREATED = "created"
     PROCESSING = "processing"

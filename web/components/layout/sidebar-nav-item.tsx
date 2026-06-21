@@ -29,8 +29,8 @@ export function SidebarNavItem({
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
     isCollapsed ? "justify-center px-2.5 py-3" : "justify-between px-3 py-2.5",
     isActive
-      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-      : "text-sidebar-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
   ].join(" ");
 
   const content = (
@@ -43,9 +43,7 @@ export function SidebarNavItem({
             <span
               className={[
                 "mt-0.5 block truncate text-[11px]",
-                isActive
-                  ? "text-sidebar-primary-foreground/70"
-                  : "text-sidebar-foreground/42",
+                isActive ? "text-primary-foreground/70" : "text-foreground/42",
               ].join(" ")}
             >
               {item.detail}
@@ -58,13 +56,13 @@ export function SidebarNavItem({
         <span
           className={[
             "h-1.5 w-1.5 rounded-full transition",
-            isActive ? "bg-sidebar-primary-foreground" : "bg-transparent",
+            isActive ? "bg-primary-foreground" : "bg-transparent",
           ].join(" ")}
         />
       )}
 
       {isCollapsed && isActive && (
-        <span className="absolute right-1 h-5 w-1 rounded-full bg-sidebar-primary-foreground" />
+        <span className="absolute right-1 h-5 w-1 rounded-full bg-primary-foreground" />
       )}
     </>
   );

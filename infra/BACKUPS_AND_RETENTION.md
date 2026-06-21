@@ -46,5 +46,10 @@ metadata and files match.
 Choose a retention policy before production use. Retaining data forever can
 create privacy, storage, and compliance risk.
 
-Workspace deletion is not implemented yet. Until it exists, deletion requests
-require an operator-run database and storage cleanup procedure.
+Workspace deletion currently uses a soft-delete lifecycle status first.
+Soft-deleted workspaces may still exist in application tables, upload storage,
+and backups until permanent deletion tooling is implemented.
+
+Permanent deletion is future work. Backup retention windows affect deletion
+guarantees, because deleted workspace data can remain restorable from retained
+database or upload-storage backups.

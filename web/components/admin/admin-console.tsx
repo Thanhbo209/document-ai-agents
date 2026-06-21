@@ -279,10 +279,11 @@ function WorkspacesSection({
           <table className="min-w-[64rem] divide-y divide-border text-sm">
             <thead className="bg-muted/70 text-left text-xs font-medium text-muted-foreground">
               <tr>
-                <Th>Workspace</Th>
-                <Th>Owner</Th>
-                <Th>Documents</Th>
-                <Th>Failed jobs</Th>
+              <Th>Workspace</Th>
+              <Th>Owner</Th>
+              <Th>Status</Th>
+              <Th>Documents</Th>
+              <Th>Failed jobs</Th>
                 <Th>Storage</Th>
                 <Th>Plan</Th>
                 <Th>Created</Th>
@@ -301,6 +302,9 @@ function WorkspacesSection({
                   <Td>
                     <div>{workspace.owner_email}</div>
                     <Mono>{workspace.owner_user_id}</Mono>
+                  </Td>
+                  <Td>
+                    <StatusBadge status={workspace.status} />
                   </Td>
                   <Td>{workspace.document_count.toLocaleString()}</Td>
                   <Td>
