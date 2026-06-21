@@ -9,6 +9,7 @@ import {
   JobsIcon,
   OverviewIcon,
   ReviewIcon,
+  SettingsIcon,
   UsageIcon,
   WorkspacesIcon,
 } from "../icons/dashboard-icons";
@@ -151,6 +152,13 @@ export function buildWorkspaceNavItems(workspaceId: string): DashboardNavItem[] 
       icon: BillingIcon,
       href: `/billing/${workspaceId}`,
       detail: "Plans and policy",
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: SettingsIcon,
+      href: `/settings/${workspaceId}`,
+      detail: "Data controls",
     },
   ];
 }

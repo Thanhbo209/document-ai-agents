@@ -4,9 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.admin.routes import router as admin_router
 from app.core.config import get_settings
 from app.middleware.request_id import RequestIDMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.observability.logging import configure_logging
 from app.routes.auth import router as auth_router
 from app.routes.billing import router as billing_router
+from app.routes.compliance import router as compliance_router
 from app.routes.documents import router as documents_router
 from app.routes.exports import router as exports_router
 from app.routes.health import router as health_router
@@ -15,6 +17,7 @@ from app.routes.query import router as query_router
 from app.routes.reviews import router as reviews_router
 from app.routes.upload import router as upload_router
 from app.routes.usage import router as usage_router
+from app.routes.workspace_settings import router as workspace_settings_router
 
 settings = get_settings()
 configure_logging(settings)
@@ -33,10 +36,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(health_router)
 app.include_router(metrics_router)
 app.include_router(billing_router, prefix="/api/v1")
+app.include_router(compliance_router, prefix="/api/v1")
+app.include_router(workspace_settings_router, prefix="/api/v1")
 app.include_router(usage_router, prefix="/api/v1")
 app.include_router(upload_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")

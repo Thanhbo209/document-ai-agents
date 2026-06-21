@@ -9,6 +9,7 @@ class AdminWorkspaceSummary(BaseModel):
     name: str
     owner_user_id: str
     owner_email: str
+    status: str
     document_count: int
     failed_job_count: int
     storage_bytes: int

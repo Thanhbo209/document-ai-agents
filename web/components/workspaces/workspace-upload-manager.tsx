@@ -61,7 +61,9 @@ export function WorkspaceUploadManager({
         title="Your document operations hub"
         description="Track ingestion health, add source files, and move quickly into grounded chat or review workflows."
         meta={
-          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
+          <p className="font-mono text-xs text-muted-foreground">
+            {workspaceId}
+          </p>
         }
         actions={
           <>
@@ -74,12 +76,12 @@ export function WorkspaceUploadManager({
       />
 
       <div className="grid gap-6">
+        <JobProgressCards documents={documents} />
+
         <UploadDropzone
           workspaceId={workspaceId}
           onUploaded={() => void refreshDocuments()}
         />
-
-        <JobProgressCards documents={documents} />
 
         <section className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
           <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
@@ -102,9 +104,7 @@ export function WorkspaceUploadManager({
               <option value="failed">Failed</option>
             </select>
 
-            <Button onClick={() => void refreshDocuments()}>
-              Refresh
-            </Button>
+            <Button onClick={() => void refreshDocuments()}>Refresh</Button>
           </div>
 
           {errorMessage && (
