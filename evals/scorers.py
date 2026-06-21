@@ -3,7 +3,7 @@ from typing import Any
 
 from app.answers.citations import extract_source_refs
 from app.answers.generator import GroundedAnswerGenerator
-from app.answers.types import GroundedAnswer
+from app.answers.types import AnswerSource, GroundedAnswer
 from app.extraction.runner import LocalStructuredExtractionClient, StructuredExtractionRunner
 from app.extraction.schemas import (
     ExtractionFieldSpec,
@@ -18,6 +18,22 @@ from evals.schemas import (
     ExtractionEvalCase,
     QAEvalCase,
 )
+
+
+def _answer_source(text: str) -> AnswerSource:
+    return AnswerSource(
+        source_id="S1",
+        chunk_id="chunk-extraction-1",
+        document_id="doc-extraction",
+        workspace_id="workspace-eval",
+        text=text,
+        source_page=None,
+        source_start_offset=0,
+        source_end_offset=len(text),
+        score=0.9,
+        metadata={"filename": "extraction.txt"},
+    )
+
 
 _NO_ANSWER_PREFIX = "I don't have enough evidence"
 
@@ -87,13 +103,9 @@ def score_extraction_case(case: ExtractionEvalCase) -> EvalCaseResult:
     )
 
     runner = StructuredExtractionRunner(LocalStructuredExtractionClient())
-    result = runner.extract(
+    result = runner.run(
         schema=schema,
-        sources=[
-            _answer_source_dict(
-                text=case.source_text,
-            )
-        ],
+        sources=[_answer_source(case.source_text)],
     )
 
     actual_by_name = {field.name: field for field in result.fields}
