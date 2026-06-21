@@ -15,6 +15,11 @@ answers and citations.
 - XLSX
 - Scanned PDFs through OCR fallback
 - Images through OCR (`PNG`, `JPG`, `JPEG`, `TIFF`, `BMP`)
+- Audio transcription (`MP3`, `WAV`, `M4A`, `FLAC`, `OGG`)
+- Video transcription (`MP4`, `MOV`, `MKV`, `WEBM`)
+- Repository ZIP archives
+- Web page connector ingestion
+- YouTube transcript connector ingestion
 
 ## OCR Ingestion
 
@@ -123,6 +128,233 @@ storage/artifacts/{workspace_id}/{document_id}/ocr/ocr.json
 
 The JSON artifact stores OCR page results, confidence, line text, and bounding
 box metadata.
+
+## Media Transcription Ingestion
+
+Media ingestion turns uploaded audio and video files into timestamped transcript
+blocks. The implementation uses adapter interfaces for both audio extraction and
+transcription so FFmpeg and Whisper can be replaced later without changing the
+upload or chunking pipeline.
+
+Default adapters:
+
+- `FFmpegAudioExtractor` calls the local `ffmpeg` binary.
+- `WhisperTranscriber` loads a local Whisper model lazily.
+
+No hosted transcription API is used. Real media processing requires FFmpeg to be
+installed system-wide and a local Whisper dependency/model available to the API
+process.
+
+### Audio And Video Behavior
+
+Supported audio files are transcribed directly:
+
+- `MP3`
+- `WAV`
+- `M4A`
+- `FLAC`
+- `OGG`
+
+Supported video files first extract mono 16 kHz WAV audio with FFmpeg:
+
+```txt
+ffmpeg -y -i input_file -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav
+```
+
+Supported video extensions:
+
+- `MP4`
+- `MOV`
+- `MKV`
+- `WEBM`
+
+Media uploads are processed asynchronously with FastAPI background tasks in this
+phase. The upload response creates the document, file, and ingestion job quickly;
+the background task then transcribes, chunks, indexes, and marks the job
+`succeeded` or `failed`.
+
+### Transcript Blocks And Timestamps
+
+Whisper segments are grouped into readable windows, usually around one minute,
+instead of creating one giant transcript block or one tiny block per word.
+
+Example block text:
+
+```txt
+Transcript 00:01:12-00:02:03
+
+The refund policy allows cancellation within fourteen days...
+```
+
+Useful metadata:
+
+- `source_type: "audio"` or `"video"`
+- `transcript: true`
+- `start_seconds`
+- `end_seconds`
+- `timestamp_start`
+- `timestamp_end`
+- `language`
+- `duration_seconds`
+- `segment_count`
+- `segments`
+
+This metadata supports future citation labels such as:
+
+```txt
+Video.mp4, 00:01:12-00:02:03
+```
+
+The frontend source drawer displays transcript timestamps in a friendly form and
+does not render raw transcript JSON.
+
+### Media Artifacts
+
+Generated media artifacts are stored under:
+
+```txt
+storage/artifacts/{workspace_id}/{document_id}/media/audio.wav
+storage/artifacts/{workspace_id}/{document_id}/media/transcript.json
+```
+
+The transcript JSON is an operational artifact for debugging and reprocessing,
+not a user-facing raw JSON view.
+
+## Connectors Ingestion
+
+Connector ingestion lets a workspace owner or member with upload permission turn
+external source metadata into the same normalized `ExtractedTextBlock` format as
+file uploads. Connector blocks are chunked, stored, indexed, and cited through
+the same pipeline as PDFs, Office files, OCR text, and media transcripts.
+
+Connector API:
+
+```txt
+POST /api/v1/workspaces/{workspace_id}/connectors/ingest
+```
+
+Supported request shapes:
+
+```json
+{
+  "source_type": "web",
+  "url": "https://example.com/page"
+}
+```
+
+```json
+{
+  "source_type": "youtube",
+  "url": "https://www.youtube.com/watch?v=abcDEF123_4"
+}
+```
+
+### Web URL Ingestion
+
+Web ingestion uses a safe fetch policy and a small standard-library HTML text
+extractor. It does not run browser automation and does not execute JavaScript.
+
+Default safety behavior:
+
+- Allows `https` URLs only.
+- Rejects empty URLs and embedded URL credentials.
+- Rejects non-HTTP schemes such as `file`, `ftp`, `gopher`, `data`, and
+  `javascript`.
+- Rejects localhost and private/internal IP ranges.
+- Supports configured domain allowlists and blocklists.
+- Enforces response byte limits and request timeouts.
+- Manually validates redirect targets before following them.
+
+Web metadata includes:
+
+- `source_type: "web"`
+- `url`
+- `final_url`
+- `title`
+- `content_type`
+
+Future citation labels can use:
+
+```txt
+Website: example.com/page
+```
+
+### YouTube Transcript Ingestion
+
+YouTube ingestion uses `youtube-transcript-api` to fetch available transcripts.
+It does not call paid APIs and does not download video/audio. Unit tests use fake
+transcript clients and do not call YouTube.
+
+Supported inputs:
+
+- Raw YouTube video IDs
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+
+Transcript segments are grouped into readable timestamp windows.
+
+YouTube metadata includes:
+
+- `source_type: "youtube"`
+- `video_id`
+- `url`
+- `title`
+- `language`
+- `start_seconds`
+- `end_seconds`
+- `timestamp_start`
+- `timestamp_end`
+- `segment_count`
+
+Future citation labels can use:
+
+```txt
+YouTube: 00:01:12-00:02:03
+```
+
+### Repository ZIP Ingestion
+
+Repository ingestion supports uploaded `.zip` files through the normal document
+upload endpoint. In this phase, all `.zip` uploads are treated as repository
+archives.
+
+ZIP safety behavior:
+
+- Validates every member path before reading files.
+- Rejects path traversal such as `../evil.py`.
+- Rejects absolute paths and Windows drive paths such as `C:\evil.py`.
+- Reads files from ZIP memory without extracting the archive to disk.
+- Enforces max file count, max per-file bytes, and max total bytes.
+- Skips likely binary files.
+
+Default repo filters include common code and documentation extensions:
+
+- `.py`, `.ts`, `.tsx`, `.js`, `.jsx`
+- `.md`, `.txt`, `.json`, `.yml`, `.yaml`, `.toml`, `.sql`, `.html`, `.css`
+
+Default exclusions include dependency/build/cache folders and common secret or
+lock files:
+
+- `.git`, `node_modules`, `.next`, `dist`, `build`, `__pycache__`
+- `.venv`, `venv`, `.pytest_cache`, `.ruff_cache`
+- `.env`, `.env.local`, `.env.production`, private key filenames
+- `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `poetry.lock`
+
+Repo metadata includes:
+
+- `source_type: "repo"`
+- `repo_name`
+- `file_path`
+- `language`
+- `line_start`
+- `line_end`
+
+Future citation labels can use:
+
+```txt
+Repo: src/main.py, Lines 10-45
+```
 
 ## Office And Table Ingestion
 
@@ -242,6 +474,10 @@ ingestion blocks include enough metadata to support labels such as:
 - `Slide 2 — Product Roadmap`
 - `Sheet Sales, Rows 2–6`
 - `Table 1, Rows 2–4`
+- `Video.mp4, 00:01:12-00:02:03`
+- `Website: example.com/page`
+- `YouTube: 00:01:12-00:02:03`
+- `Repo: src/main.py, Lines 10-45`
 
 ## Known Limitations
 
@@ -251,6 +487,20 @@ ingestion blocks include enough metadata to support labels such as:
 - Images inside Office files are not OCR'd unless separately extracted.
 - Tesseract must be installed locally/system-wide for real OCR execution.
 - Tests use a fake OCR engine and do not require the real Tesseract binary.
+- FFmpeg must be installed locally/system-wide for real video audio extraction.
+- Local Whisper model size affects transcription speed, CPU, and memory usage.
+- Tests use fake media adapters and do not require real FFmpeg or Whisper.
+- Speaker diarization is not implemented.
+- Transcription quality depends on audio quality and the selected local model.
+- Very large media should eventually move from in-process background tasks to a
+  real worker queue.
+- Web extraction is simple readable text, not browser-rendered JavaScript.
+- YouTube ingestion requires transcript availability; private videos may not
+  work.
+- Repository ingestion supports ZIP uploads, not Git clone yet.
+- Secret-like filenames are skipped by default, but this is not a full secret
+  scanner.
+- Very large repositories should eventually move to async worker processing.
 - Images inside Office files are not extracted.
 - Speaker notes and comments are not extracted.
 - Complex nested Word tables may be simplified.

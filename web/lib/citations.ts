@@ -46,3 +46,64 @@ export function citationNumber(sourceId: string): number | null {
   }
   return null;
 }
+
+export function formatMetadataTimestamp(
+  metadata: Record<string, unknown> | undefined,
+): string | null {
+  const start = metadata?.timestamp_start;
+  const end = metadata?.timestamp_end;
+
+  if (typeof start !== "string" || !start) {
+    return null;
+  }
+
+  if (typeof end === "string" && end && end !== start) {
+    return `${start}-${end}`;
+  }
+
+  return start;
+}
+
+export function formatSourceMetadataSummary(
+  metadata: Record<string, unknown> | undefined,
+): string | null {
+  const sourceType = readString(metadata, "source_type");
+
+  if (sourceType === "web") {
+    const title = readString(metadata, "title");
+    const url = readString(metadata, "final_url") ?? readString(metadata, "url");
+    return ["Web Page", title ?? url].filter(Boolean).join(" · ");
+  }
+
+  if (sourceType === "youtube") {
+    const timestamp = formatMetadataTimestamp(metadata);
+    return ["YouTube", timestamp].filter(Boolean).join(" · ");
+  }
+
+  if (sourceType === "repo") {
+    const filePath = readString(metadata, "file_path");
+    const lineStart = readNumber(metadata, "line_start");
+    const lineEnd = readNumber(metadata, "line_end");
+    const lineLabel =
+      lineStart && lineEnd ? `Lines ${lineStart}-${lineEnd}` : null;
+    return ["Repository", filePath, lineLabel].filter(Boolean).join(" · ");
+  }
+
+  return formatMetadataTimestamp(metadata);
+}
+
+function readString(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  const value = metadata?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function readNumber(
+  metadata: Record<string, unknown> | undefined,
+  key: string,
+): number | null {
+  const value = metadata?.[key];
+  return typeof value === "number" ? value : null;
+}

@@ -1,4 +1,9 @@
 import { QuerySource } from "../../lib/chat-api";
+import {
+  formatCitationLabel,
+  formatMetadataTimestamp,
+  formatSourceMetadataSummary,
+} from "../../lib/citations";
 import { Button } from "../ui/button";
 
 type SourceDrawerProps = {
@@ -11,16 +16,22 @@ export function SourceDrawer({ source, onClose }: SourceDrawerProps) {
     return null;
   }
 
+  const timestamp = formatMetadataTimestamp(source.metadata);
+  const sourceSummary = formatSourceMetadataSummary(source.metadata);
+
   return (
     <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-border bg-card shadow-2xl">
       <div className="flex items-start justify-between border-b border-border px-6 py-4">
         <div>
           <p className="text-sm font-medium text-muted-foreground">
-            Source {source.source_id}
+            {formatCitationLabel(source.source_id)}
           </p>
           <h2 className="mt-1 text-lg font-semibold text-card-foreground">
             Citation context
           </h2>
+          {sourceSummary && (
+            <p className="mt-1 text-sm text-muted-foreground">{sourceSummary}</p>
+          )}
         </div>
 
         <Button variant="secondary" onClick={onClose}>
@@ -46,6 +57,13 @@ export function SourceDrawer({ source, onClose }: SourceDrawerProps) {
             </div>
 
             <div className="grid grid-cols-3 gap-3">
+              {timestamp && (
+                <div>
+                  <dt className="font-medium text-muted-foreground">Timestamp</dt>
+                  <dd className="mt-1 text-card-foreground">{timestamp}</dd>
+                </div>
+              )}
+
               <div>
                 <dt className="font-medium text-muted-foreground">Page</dt>
                 <dd className="mt-1 text-card-foreground">

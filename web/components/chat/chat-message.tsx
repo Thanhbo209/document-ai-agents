@@ -1,4 +1,8 @@
-import { stripCitationMarkers, formatCitationLabel } from "../../lib/citations";
+import {
+  stripCitationMarkers,
+  formatCitationLabel,
+  formatMetadataTimestamp,
+} from "../../lib/citations";
 import { QueryCitation, QuerySource } from "../../lib/chat-api";
 import { StatusBadge } from "../ui/status-badge";
 
@@ -108,6 +112,9 @@ function AssistantFooter({
           {citations!.map((citation) => {
             const source = sourceById.get(citation.source_id);
             const label = formatCitationLabel(citation.source_id);
+            const timestamp = source
+              ? formatMetadataTimestamp(source.metadata)
+              : null;
 
             return (
               <button
@@ -121,13 +128,18 @@ function AssistantFooter({
                 }}
                 className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:-translate-y-0.5 hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
                 title={
-                  citation.source_page
-                    ? `${label} · page ${citation.source_page}`
-                    : label
+                  [
+                    label,
+                    citation.source_page ? `page ${citation.source_page}` : null,
+                    timestamp,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
                 }
               >
                 {label}
                 {citation.source_page ? ` · p.${citation.source_page}` : ""}
+                {timestamp ? ` · ${timestamp}` : ""}
               </button>
             );
           })}
