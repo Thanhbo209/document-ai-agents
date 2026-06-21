@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     ocr_enabled: bool = Field(default=True)
     ocr_low_confidence_threshold: float = Field(default=0.65)
 
+    media_async_enabled: bool = Field(default=True)
+    media_max_sync_size_bytes: int = Field(default=10 * 1024 * 1024)
+    whisper_model_name: str = Field(default="base")
+
+    connector_web_allowed_domains: list[str] = Field(default_factory=list)
+    connector_web_blocked_domains: list[str] = Field(default_factory=list)
+    connector_web_max_response_bytes: int = Field(default=2_000_000)
+    connector_web_timeout_seconds: float = Field(default=10.0)
+
+    repo_ingestion_max_files: int = Field(default=500)
+    repo_ingestion_max_total_bytes: int = Field(default=20_000_000)
+    repo_ingestion_max_file_bytes: int = Field(default=500_000)
+
     # tests and local boot should work without Docker using SQLite
     database_url: str = Field(default="sqlite:///./rag_platform.db")
 
