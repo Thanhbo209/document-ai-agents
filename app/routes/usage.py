@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.billing.plans import get_plan_definition
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.billing.usage import UsageRepository
 from app.db.session import get_db
-from app.limits.policies import WorkspaceLimitPolicy, get_workspace_limit_policy
+from app.limits.policies import WorkspaceLimitPolicy
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.permissions.policies import WorkspacePermission
 
@@ -20,8 +22,15 @@ class UsageMetricResponse(BaseModel):
     unit: str
 
 
+class UsagePlanResponse(BaseModel):
+    name: str
+    display_name: str
+    status: str
+
+
 class UsageSummaryResponse(BaseModel):
     workspace_id: str
+    plan: UsagePlanResponse
     metrics: list[UsageMetricResponse]
 
 
@@ -37,14 +46,21 @@ def get_workspace_usage(
     del access
 
     usage_repo = UsageRepository(db)
-    policy = get_workspace_limit_policy()
+    subscription = WorkspaceSubscriptionRepository(db).get_or_create_subscription(workspace_id)
+    plan = get_plan_definition(subscription.plan_name)
+    db.commit()
 
     return UsageSummaryResponse(
         workspace_id=workspace_id,
+        plan=UsagePlanResponse(
+            name=plan.name.value,
+            display_name=plan.display_name,
+            status=subscription.status,
+        ),
         metrics=_usage_metrics(
             usage_repo=usage_repo,
             workspace_id=workspace_id,
-            policy=policy,
+            policy=plan.limits,
         ),
     )
 

@@ -73,6 +73,11 @@ class Workspace(Base, TimestampMixin):
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
+    subscription: Mapped[WorkspaceSubscription | None] = relationship(
+        back_populates="workspace",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class WorkspaceMember(Base, TimestampMixin):
@@ -93,6 +98,30 @@ class WorkspaceMember(Base, TimestampMixin):
 
     workspace: Mapped[Workspace] = relationship(back_populates="members")
     user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class WorkspaceSubscription(Base, TimestampMixin):
+    __tablename__ = "workspace_subscriptions"
+    __table_args__ = (Index("ix_workspace_subscriptions_workspace", "workspace_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    workspace_id: Mapped[str] = mapped_column(
+        ForeignKey("workspaces.id"),
+        unique=True,
+        nullable=False,
+    )
+    plan_name: Mapped[str] = mapped_column(String(40), default="free", nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="active", nullable=False)
+    current_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    workspace: Mapped[Workspace] = relationship(back_populates="subscription")
 
 
 class Document(Base, TimestampMixin):

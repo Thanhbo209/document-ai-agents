@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.billing.usage import UsageRepository
 from app.core.config import get_settings
 from app.db.models import IngestionJob
@@ -85,7 +86,8 @@ async def upload_document(
         )
 
     usage_repo = UsageRepository(db)
-    quota_service = QuotaService(usage_repo)
+    subscription_repo = WorkspaceSubscriptionRepository(db)
+    quota_service = QuotaService(usage_repo, subscription_repo)
 
     try:
         quota_service.assert_can_upload(

@@ -7,8 +7,15 @@ export type UsageMetric = {
   unit: string;
 };
 
+export type UsagePlan = {
+  name: string;
+  display_name: string;
+  status: string;
+};
+
 export type UsageSummary = {
   workspace_id: string;
+  plan: UsagePlan;
   metrics: UsageMetric[];
 };
 

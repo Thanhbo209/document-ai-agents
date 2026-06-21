@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.answers.generator import GroundedAnswerGenerationError, GroundedAnswerGenerator
 from app.answers.types import AnswerCitation, AnswerSource, GroundedAnswer
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.billing.usage import UsageRepository
 from app.db.models import Document
 from app.db.session import get_db
@@ -131,7 +132,8 @@ def _run_query(
     )
 
     usage_repo = UsageRepository(db)
-    quota_service = QuotaService(usage_repo)
+    subscription_repo = WorkspaceSubscriptionRepository(db)
+    quota_service = QuotaService(usage_repo, subscription_repo)
 
     try:
         quota_service.assert_can_query(workspace_id)

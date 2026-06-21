@@ -31,6 +31,11 @@ def test_usage_summary_returns_workspace_metrics(
     payload = response.json()
 
     assert payload["workspace_id"] == workspace_id
+    assert payload["plan"] == {
+        "name": "free",
+        "display_name": "Free",
+        "status": "active",
+    }
 
     metric_names = {metric["metric_name"] for metric in payload["metrics"]}
 
