@@ -13,9 +13,5 @@ export const metadata: Metadata = {
 export default async function WorkspacePage({ params }: WorkspacePageProps) {
   const { workspaceId } = await params;
 
-  return (
-    <main className="min-h-screen bg-slate-50">
-      <WorkspaceUploadManager workspaceId={workspaceId} />
-    </main>
-  );
+  return <WorkspaceUploadManager workspaceId={workspaceId} />;
 }
