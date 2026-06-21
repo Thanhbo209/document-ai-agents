@@ -1,4 +1,5 @@
 import { API_BASE_URL, apiRequest, formatApiError, safeReadJson } from "./api";
+import { getAccessToken } from "./auth-api";
 
 export type QueryCitation = {
   source_id: string;
@@ -68,13 +69,20 @@ export async function streamWorkspaceQuery(
   input: StreamQueryInput,
   handlers: StreamQueryHandlers,
 ): Promise<void> {
+  const token = getAccessToken();
+
+  const headers = new Headers({
+    "Content-Type": "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   const response = await fetch(
     `${API_BASE_URL}/workspaces/${workspaceId}/query/stream`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: headers,
       body: JSON.stringify(input),
     },
   );

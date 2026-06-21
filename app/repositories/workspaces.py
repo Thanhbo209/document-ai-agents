@@ -9,11 +9,33 @@ class WorkspaceRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def create_user(self, email: str, display_name: str | None = None) -> User:
-        user = User(email=email, display_name=display_name)
+    def create_user(
+        self, email: str, display_name: str | None = None, password_hash: str | None = None
+    ) -> User:
+        user = User(email=email, display_name=display_name, password_hash=password_hash)
         self.db.add(user)
         self.db.flush()
         return user
+
+    def get_user_by_email(self, email: str) -> User | None:
+        statement = select(User).where(User.email == email)
+
+        return self.db.scalar(statement)
+
+    def get_user_by_id(self, user_id: str) -> User | None:
+        return self.db.get(User, user_id)
+
+    def get_membership(
+        self,
+        workspace_id: str,
+        user_id: str,
+    ) -> WorkspaceMember | None:
+        statement = select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+
+        return self.db.scalar(statement)
 
     def create_workspace(self, name: str, owner_user_id: str) -> Workspace:
         workspace = Workspace(name=name, owner_user_id=owner_user_id)

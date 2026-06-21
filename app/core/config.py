@@ -27,6 +27,10 @@ class Settings(BaseSettings):
         ]
     )
 
+    jwt_secret_key: str = Field(default="dev-change-me")
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=60 * 24)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="RAG_PLATFORM_",

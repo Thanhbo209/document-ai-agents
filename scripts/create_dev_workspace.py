@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.auth.security import hash_password
 from app.db.models import User, Workspace
 from app.db.session import SessionLocal
 from app.repositories.workspaces import WorkspaceRepository
@@ -17,7 +18,10 @@ def main() -> None:
             user = repo.create_user(
                 email="dev@example.com",
                 display_name="Dev User",
+                password_hash=hash_password("password123"),
             )
+        elif user.password_hash is None:
+            user.password_hash = hash_password("password123")
 
         workspace = db.scalar(
             select(Workspace).where(
@@ -34,6 +38,8 @@ def main() -> None:
 
         db.commit()
 
+        print("email: dev@example.com")
+        print("password: password123")
         print("user_id:", user.id)
         print("workspace_id:", workspace.id)
 

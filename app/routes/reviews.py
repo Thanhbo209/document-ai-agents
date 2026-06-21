@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Workspace
 from app.db.session import get_db
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
+from app.permissions.policies import WorkspacePermission
 from app.reviews.repository import (
     InvalidReviewTransitionError,
     ReviewItemNotFoundError,
@@ -14,6 +16,12 @@ from app.reviews.repository import (
 )
 
 router = APIRouter(tags=["reviews"])
+
+create_reviews_access = require_workspace_permission(WorkspacePermission.CREATE_REVIEWS)
+
+read_reviews_access = require_workspace_permission(WorkspacePermission.READ_REVIEWS)
+
+decide_reviews_access = require_workspace_permission(WorkspacePermission.DECIDE_REVIEWS)
 
 
 class CreateReviewItemRequest(BaseModel):
@@ -57,6 +65,7 @@ def create_review_item(
     workspace_id: str,
     request: CreateReviewItemRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(create_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -83,6 +92,7 @@ def list_review_items(
     workspace_id: str,
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(read_reviews_access),
 ) -> list[ReviewItemResponse]:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -104,6 +114,7 @@ def approve_review_item(
     review_item_id: str,
     request: ReviewDecisionRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(decide_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -113,7 +124,7 @@ def approve_review_item(
         item = repo.approve_review_item(
             workspace_id=workspace_id,
             review_item_id=review_item_id,
-            reviewer_user_id=request.reviewer_user_id,
+            reviewer_user_id=request.reviewer_user_id or access.user.id,
             reviewed_value=request.reviewed_value,
             comments=request.comments,
         )
@@ -136,6 +147,7 @@ def reject_review_item(
     review_item_id: str,
     request: ReviewDecisionRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(decide_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 
