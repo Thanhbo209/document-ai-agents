@@ -6,6 +6,10 @@ class InputType(StrEnum):
     TEXT = "text"
     MARKDOWN = "markdown"
     PDF = "pdf"
+    DOCX = "docx"
+    PPTX = "pptx"
+    CSV = "csv"
+    XLSX = "xlsx"
 
 
 @dataclass(frozen=True)
