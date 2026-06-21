@@ -10,9 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.answers.generator import GroundedAnswerGenerationError, GroundedAnswerGenerator
 from app.answers.types import AnswerCitation, AnswerSource, GroundedAnswer
+from app.billing.usage import UsageRepository
 from app.db.models import Document
 from app.db.session import get_db
 from app.indexing.indexer import DocumentIndexer
+from app.limits.policies import LimitExceededError
+from app.limits.service import QuotaService, quota_error_response
 from app.llm.client import LocalGroundedLLMClient
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.enums import MessageRole
@@ -126,6 +129,17 @@ def _run_query(
         requested_document_ids=request.document_ids,
     )
 
+    usage_repo = UsageRepository(db)
+    quota_service = QuotaService(usage_repo)
+
+    try:
+        quota_service.assert_can_query(workspace_id)
+    except LimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=quota_error_response(exc),
+        ) from exc
+
     _index_documents_for_query(
         db=db,
         workspace_id=workspace_id,
@@ -152,6 +166,42 @@ def _run_query(
                 "error": str(exc),
             },
         ) from exc
+
+    usage_repo.record_usage(
+        workspace_id=workspace_id,
+        actor_user_id=user_id,
+        metric_name="query.count",
+        quantity=1,
+        unit="query",
+        source_type="conversation",
+        source_id=None,
+        usage_metadata={
+            "top_k": request.top_k,
+            "document_ids": request.document_ids or [],
+        },
+    )
+    usage_repo.record_usage(
+        workspace_id=workspace_id,
+        actor_user_id=user_id,
+        metric_name="retrieval.results",
+        quantity=len(retrieved_chunks),
+        unit="chunk",
+        source_type="conversation",
+        source_id=None,
+    )
+    usage_repo.record_usage(
+        workspace_id=workspace_id,
+        actor_user_id=user_id,
+        metric_name="llm.tokens",
+        quantity=_estimate_tokens(answer.message),
+        unit="token",
+        source_type="conversation",
+        source_id=None,
+        usage_metadata={
+            "model_name": answer.model_name,
+            "prompt_id": answer.prompt_id,
+        },
+    )
 
     user_message_id, assistant_message_id = _persist_conversation(
         db=db,
@@ -269,6 +319,10 @@ def _persist_conversation(
         )
 
     return user_message.id, assistant_message.id
+
+
+def _estimate_tokens(text: str) -> int:
+    return max(1, len(text.split()))
 
 
 def _query_response_from_answer(

@@ -267,3 +267,24 @@ class AuditEvent(Base, TimestampMixin):
     entity_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     payload: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+
+
+class UsageEvent(Base, TimestampMixin):
+    __tablename__ = "usage_events"
+    __table_args__ = (
+        Index("ix_usage_events_workspace_created", "workspace_id", "created_at"),
+        Index("ix_usage_events_workspace_metric", "workspace_id", "metric_name"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    actor_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+
+    metric_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    quantity: Mapped[int] = mapped_column(nullable=False)
+    unit: Mapped[str] = mapped_column(String(40), nullable=False)
+
+    source_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    usage_metadata: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
