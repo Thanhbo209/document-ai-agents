@@ -4,11 +4,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.billing.usage import UsageRepository
 from app.core.config import get_settings
 from app.db.models import IngestionJob
 from app.db.session import get_db
 from app.ingestion.errors import ExtractionError, UnsupportedFileTypeError
 from app.ingestion.loader import detect_input_type, load_document
+from app.limits.policies import LimitExceededError
+from app.limits.service import QuotaService, quota_error_response
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
@@ -66,19 +69,33 @@ async def upload_document(
             detail=str(exc),
         ) from exc
 
-    content = await file.read()
+    file_bytes = await file.read()
 
-    if not content:
+    if not file_bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
 
-    if len(content) > settings.max_upload_size_bytes:
+    if len(file_bytes) > settings.max_upload_size_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Uploaded file exceeds the maximum allowed size.",
         )
+
+    usage_repo = UsageRepository(db)
+    quota_service = QuotaService(usage_repo)
+
+    try:
+        quota_service.assert_can_upload(
+            workspace_id=workspace_id,
+            file_size_bytes=len(file_bytes),
+        )
+    except LimitExceededError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=quota_error_response(exc),
+        ) from exc
 
     document_repo = DocumentRepository(db)
 
@@ -98,7 +115,7 @@ async def upload_document(
         workspace_id=workspace_id,
         document_id=document.id,
         filename=file.filename,
-        content=content,
+        content=file_bytes,
     )
 
     document_file = document_repo.create_document_file(
@@ -144,6 +161,43 @@ async def upload_document(
 
         document_repo.update_document_status(document, DocumentStatus.INDEXED)
         document_repo.update_ingestion_job_status(job, JobStatus.SUCCEEDED)
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="upload.bytes",
+            quantity=len(file_bytes),
+            unit="bytes",
+            source_type="document",
+            source_id=document.id,
+            usage_metadata={"filename": file.filename},
+        )
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="document.count",
+            quantity=1,
+            unit="document",
+            source_type="document",
+            source_id=document.id,
+        )
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="chunk.count",
+            quantity=len(chunks),
+            unit="chunk",
+            source_type="document",
+            source_id=document.id,
+        )
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="chunk.tokens",
+            quantity=sum(chunk.token_count for chunk in chunks),
+            unit="token",
+            source_type="document",
+            source_id=document.id,
+        )
         db.commit()
 
         return UploadDocumentResponse(
