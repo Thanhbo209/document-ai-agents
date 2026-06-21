@@ -2,124 +2,110 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "../layout/dashboard-shell";
-import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { LoadingState } from "../ui/loading-state";
-import { PageHeader } from "../ui/page-header";
-import { UploadDropzone } from "../upload/upload-dropzone";
-import { JobProgressCards } from "../upload/job-progress-cards";
-import { DocumentTable } from "../documents/document-table";
 import { listDocuments, WorkspaceDocument } from "../../lib/upload-api";
+import { getWorkspaceUsage, UsageMetric, UsagePlan } from "../../lib/usage-api";
+import { getWorkspaceSettings, WorkspaceSettings } from "../../lib/workspace-settings-api";
+import { OverviewHero } from "../dashboard/overview/overview-hero";
+import { WorkspaceKpiGrid } from "../dashboard/overview/workspace-kpi-grid";
+import { UsageOverviewChart } from "../dashboard/overview/usage-overview-chart";
+import { RecentActivityCard } from "../dashboard/overview/recent-activity-card";
+import { QuickActionsCard } from "../dashboard/overview/quick-actions-card";
 
 type WorkspaceUploadManagerProps = {
   workspaceId: string;
 };
 
+/**
+ * WorkspaceUploadManager has been refactored into the workspace Overview dashboard.
+ * The document library now lives at /documents/[workspaceId].
+ */
 export function WorkspaceUploadManager({
   workspaceId,
 }: WorkspaceUploadManagerProps) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([]);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
+  const [metrics, setMetrics] = useState<UsageMetric[]>([]);
+  const [plan, setPlan] = useState<UsagePlan | null>(null);
+  const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const refreshDocuments = useCallback(async () => {
+  const refresh = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const response = await listDocuments(workspaceId, {
-        query: query || undefined,
-        status: status || undefined,
-      });
+      const [docsResponse, usageResponse, settingsResponse] = await Promise.all([
+        listDocuments(workspaceId),
+        getWorkspaceUsage(workspaceId),
+        getWorkspaceSettings(workspaceId).catch(() => null),
+      ]);
 
-      setDocuments(response.documents);
+      setDocuments(docsResponse.documents);
+      setMetrics(usageResponse.metrics);
+      setPlan(usageResponse.plan);
+      setSettings(settingsResponse);
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Could not load documents.",
+        error instanceof Error ? error.message : "Could not load workspace data.",
       );
     } finally {
       setIsLoading(false);
     }
-  }, [workspaceId, query, status]);
+  }, [workspaceId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refreshDocuments();
-  }, [refreshDocuments]);
+    void refresh();
+  }, [refresh]);
+
+  const workspaceName = settings?.name ?? "Your workspace";
+  const workspaceStatus = settings?.status ?? "active";
+  const planDisplayName = plan?.display_name ?? settings?.plan?.display_name ?? "Free";
 
   return (
     <DashboardShell
       activeItem="overview"
-      title="Workspace overview"
-      description="Upload, index, review, and query documents from one operational console."
+      title="Overview"
+      description="Workspace health, usage, and activity at a glance."
       workspaceId={workspaceId}
     >
-      <PageHeader
-        kicker="Workspace"
-        title="Your document operations hub"
-        description="Track ingestion health, add source files, and move quickly into grounded chat or review workflows."
-        meta={
-          <p className="font-mono text-xs text-muted-foreground">
-            {workspaceId}
-          </p>
-        }
-        actions={
-          <>
-            <Button href={`/chat/${workspaceId}`}>Open chat</Button>
-            <Button href={`/usage/${workspaceId}`} variant="secondary">
-              View usage
-            </Button>
-          </>
-        }
-      />
+      {isLoading ? (
+        <LoadingState title="Loading workspace" rows={4} />
+      ) : errorMessage ? (
+        <ErrorState message={errorMessage} />
+      ) : (
+        <div className="grid gap-6">
+          {/* Hero */}
+          <OverviewHero
+            workspaceName={workspaceName}
+            workspaceStatus={workspaceStatus}
+            planName={planDisplayName}
+          />
 
-      <div className="grid gap-6">
-        <JobProgressCards documents={documents} />
+          {/* KPI cards */}
+          <WorkspaceKpiGrid
+            documents={documents}
+            metrics={metrics}
+            planDisplayName={planDisplayName}
+          />
 
-        <UploadDropzone
-          workspaceId={workspaceId}
-          onUploaded={() => void refreshDocuments()}
-        />
-
-        <section className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by title or source type..."
-              className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring"
-            />
-
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value)}
-              className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring"
-            >
-              <option value="">All statuses</option>
-              <option value="created">Created</option>
-              <option value="processing">Processing</option>
-              <option value="indexed">Indexed</option>
-              <option value="failed">Failed</option>
-            </select>
-
-            <Button onClick={() => void refreshDocuments()}>Refresh</Button>
-          </div>
-
-          {errorMessage && (
-            <div className="mt-4">
-              <ErrorState message={errorMessage} />
-            </div>
+          {/* Usage overview */}
+          {metrics.length > 0 && (
+            <UsageOverviewChart metrics={metrics} />
           )}
-        </section>
 
-        {isLoading ? (
-          <LoadingState title="Loading documents" />
-        ) : (
-          <DocumentTable documents={documents} />
-        )}
-      </div>
+          {/* Recent activity + Quick actions */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RecentActivityCard
+              documents={documents}
+              workspaceId={workspaceId}
+            />
+            <QuickActionsCard workspaceId={workspaceId} />
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }
