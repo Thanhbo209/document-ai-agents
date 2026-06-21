@@ -33,8 +33,12 @@ export function UploadDropzone({
     try {
       const result = await uploadDocument(workspaceId, file);
 
+      const chunkText =
+        result.chunks_created === 1
+          ? "1 chunk indexed"
+          : `${result.chunks_created} chunks indexed`;
       setMessage(
-        `Upload complete. Job ${result.job_id} created ${result.chunks_created} chunks.`,
+        `Upload complete — ${chunkText} and ready for chat.`,
       );
       onUploaded();
     } catch (error) {

@@ -6,8 +6,8 @@ type WorkspacePageProps = {
 };
 
 export const metadata: Metadata = {
-  title: "Workspace",
-  description: "Upload documents and monitor ingestion status.",
+  title: "Overview",
+  description: "Workspace health, usage, and activity at a glance.",
 };
 
 export default async function WorkspacePage({ params }: WorkspacePageProps) {
