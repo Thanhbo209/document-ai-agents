@@ -50,7 +50,7 @@ class User(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
-
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     memberships: Mapped[list[WorkspaceMember]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

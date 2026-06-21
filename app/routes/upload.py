@@ -5,17 +5,21 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import IngestionJob, Workspace
+from app.db.models import IngestionJob
 from app.db.session import get_db
 from app.ingestion.errors import ExtractionError, UnsupportedFileTypeError
 from app.ingestion.loader import detect_input_type, load_document
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
+from app.permissions.policies import WorkspacePermission
 from app.processing.chunker import chunk_document
 from app.repositories.documents import DocumentRepository
 from app.storage.local import LocalFileStorage
 
 router = APIRouter(tags=["uploads"])
+
+upload_documents_access = require_workspace_permission(WorkspacePermission.UPLOAD_DOCUMENTS)
 
 
 class UploadDocumentResponse(BaseModel):
@@ -41,6 +45,7 @@ async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     storage: LocalFileStorage = Depends(get_file_storage),
+    access: WorkspaceAccess = Depends(upload_documents_access),
 ) -> UploadDocumentResponse:
     settings = get_settings()
 
@@ -48,13 +53,6 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file must have a filename.",
-        )
-
-    workspace = db.get(Workspace, workspace_id)
-    if workspace is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found.",
         )
 
     try:

@@ -1,14 +1,18 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.db.models import Document, DocumentChunk, DocumentFile, IngestionJob, Workspace
+from app.db.models import Document, DocumentChunk, DocumentFile, IngestionJob
 from app.db.session import get_db
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
+from app.permissions.policies import WorkspacePermission
 
 router = APIRouter(tags=["documents"])
+
+read_documents_access = require_workspace_permission(WorkspacePermission.READ_DOCUMENTS)
 
 
 class DocumentFileResponse(BaseModel):
@@ -56,14 +60,8 @@ def list_workspace_documents(
     query: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(read_documents_access),
 ) -> DocumentListResponse:
-    workspace = db.get(Workspace, workspace_id)
-
-    if workspace is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found.",
-        )
 
     statement = select(Document).where(Document.workspace_id == workspace_id)
 

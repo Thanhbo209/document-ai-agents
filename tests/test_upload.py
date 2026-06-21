@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.repositories.documents import DocumentRepository
-from app.repositories.workspaces import WorkspaceRepository
+from tests.helpers import create_authenticated_workspace
 
 
 def build_minimal_pdf(text: str) -> bytes:
@@ -47,30 +47,22 @@ def build_minimal_pdf(text: str) -> bytes:
     return bytes(output)
 
 
-def create_workspace(db_session: Session) -> str:
-    workspace_repo = WorkspaceRepository(db_session)
-
-    user = workspace_repo.create_user(
+def create_workspace(db_session: Session) -> tuple[str, dict[str, str]]:
+    return create_authenticated_workspace(
+        db_session,
         email="owner@example.com",
-        display_name="Owner",
     )
-    workspace = workspace_repo.create_workspace(
-        name="Test Workspace",
-        owner_user_id=user.id,
-    )
-    db_session.commit()
-
-    return workspace.id
 
 
 def test_upload_text_file_creates_document_job_file_and_chunk(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "notes.txt",
@@ -106,10 +98,11 @@ def test_upload_markdown_file_is_accepted(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "README.md",
@@ -130,11 +123,12 @@ def test_upload_pdf_extracts_page_text(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
     pdf_bytes = build_minimal_pdf("Hello PDF")
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "sample.pdf",
@@ -164,10 +158,11 @@ def test_upload_rejects_unsupported_file_type(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "program.exe",
@@ -181,9 +176,15 @@ def test_upload_rejects_unsupported_file_type(
     assert "Unsupported file type" in response.json()["detail"]
 
 
-def test_upload_to_missing_workspace_returns_404(client: TestClient) -> None:
+def test_upload_to_missing_workspace_returns_404(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _, headers = create_workspace(db_session)
+
     response = client.post(
         "/api/v1/workspaces/missing-workspace/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "notes.txt",
