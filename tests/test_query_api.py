@@ -4,7 +4,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Citation, ConversationMessage
+from app.db.models import Citation, ConversationMessage, UsageEvent
+from app.limits.policies import WorkspaceLimitPolicy
 from tests.helpers import create_authenticated_workspace
 
 
@@ -78,6 +79,97 @@ def test_query_workspace_returns_grounded_answer_and_persists_conversation(
     assert messages[0].role == "user"
     assert messages[1].role == "assistant"
     assert len(citations) == 1
+
+
+def test_query_workspace_records_usage_metrics(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    workspace_id, headers = create_workspace(db_session)
+    upload_text_document(
+        client=client,
+        workspace_id=workspace_id,
+        headers=headers,
+        filename="refund.txt",
+        content=b"Refund policy allows cancellation within 14 days.",
+    )
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/query",
+        headers=headers,
+        json={
+            "query": "What is the refund policy?",
+            "top_k": 3,
+        },
+    )
+
+    assert response.status_code == 200
+
+    payload = response.json()
+    usage_events = list(
+        db_session.scalars(
+            select(UsageEvent)
+            .where(
+                UsageEvent.workspace_id == workspace_id,
+                UsageEvent.source_type == "conversation",
+            )
+            .order_by(UsageEvent.metric_name)
+        ).all()
+    )
+    usage_by_metric = {event.metric_name: event for event in usage_events}
+
+    assert set(usage_by_metric) == {
+        "llm.tokens",
+        "query.count",
+        "retrieval.results",
+    }
+    assert usage_by_metric["query.count"].quantity == 1
+    assert usage_by_metric["query.count"].unit == "query"
+    assert usage_by_metric["query.count"].usage_metadata == {
+        "top_k": 3,
+        "document_ids": [],
+    }
+    assert usage_by_metric["retrieval.results"].quantity == len(payload["source_list"])
+    assert usage_by_metric["retrieval.results"].unit == "chunk"
+    assert usage_by_metric["llm.tokens"].quantity == max(1, len(payload["message"].split()))
+    assert usage_by_metric["llm.tokens"].unit == "token"
+    assert usage_by_metric["llm.tokens"].usage_metadata == {
+        "model_name": payload["model_name"],
+        "prompt_id": payload["prompt_id"],
+    }
+    assert {event.source_id for event in usage_events} == {None}
+
+
+def test_query_workspace_returns_429_when_quota_is_exceeded(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    workspace_id, headers = create_workspace(db_session)
+    monkeypatch.setattr(
+        "app.limits.service.get_workspace_limit_policy",
+        lambda: WorkspaceLimitPolicy(
+            storage_bytes_limit=100 * 1024 * 1024,
+            documents_limit=100,
+            daily_query_limit=0,
+            monthly_embedding_token_limit=500_000,
+            monthly_llm_token_limit=500_000,
+            concurrent_job_limit=2,
+        ),
+    )
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/query",
+        headers=headers,
+        json={
+            "query": "What is the refund policy?",
+            "top_k": 5,
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.json()["detail"]["metric_name"] == "query.count"
+    assert list(db_session.scalars(select(ConversationMessage)).all()) == []
 
 
 def test_query_workspace_can_target_document_subset(
