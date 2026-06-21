@@ -138,6 +138,8 @@ async def upload_document(
             path=stored_file.path,
             input_type=input_type,
             title=document.title,
+            workspace_id=workspace_id,
+            document_id=document.id,
         )
 
         chunking_config = ChunkingConfig(
