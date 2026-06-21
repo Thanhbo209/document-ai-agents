@@ -46,3 +46,20 @@ export function citationNumber(sourceId: string): number | null {
   }
   return null;
 }
+
+export function formatMetadataTimestamp(
+  metadata: Record<string, unknown> | undefined,
+): string | null {
+  const start = metadata?.timestamp_start;
+  const end = metadata?.timestamp_end;
+
+  if (typeof start !== "string" || !start) {
+    return null;
+  }
+
+  if (typeof end === "string" && end && end !== start) {
+    return `${start}-${end}`;
+  }
+
+  return start;
+}

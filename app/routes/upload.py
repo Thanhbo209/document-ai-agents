@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -11,8 +11,11 @@ from app.db.models import IngestionJob
 from app.db.session import get_db
 from app.ingestion.errors import ExtractionError, UnsupportedFileTypeError
 from app.ingestion.loader import detect_input_type, load_document
+from app.ingestion.transcribe import WhisperTranscriber
+from app.ingestion.types import InputType, NormalizedDocument
 from app.limits.policies import LimitExceededError
 from app.limits.service import QuotaService, quota_error_response
+from app.media.ffmpeg import FFmpegAudioExtractor
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
@@ -20,7 +23,9 @@ from app.observability.metrics import record_upload
 from app.permissions.policies import WorkspacePermission
 from app.processing.chunker import chunk_document
 from app.repositories.documents import DocumentRepository
+from app.storage.artifacts import ArtifactStorage
 from app.storage.local import LocalFileStorage
+from app.workers.media_worker import MediaWorker
 
 router = APIRouter(tags=["uploads"])
 
@@ -40,6 +45,15 @@ def get_file_storage() -> LocalFileStorage:
     return LocalFileStorage(settings.upload_dir)
 
 
+def get_media_worker() -> MediaWorker:
+    settings = get_settings()
+    return MediaWorker(
+        artifact_storage=ArtifactStorage(settings.artifact_dir),
+        audio_extractor=FFmpegAudioExtractor(),
+        transcriber=WhisperTranscriber(settings.whisper_model_name),
+    )
+
+
 @router.post(
     "/workspaces/{workspace_id}/documents/upload",
     response_model=UploadDocumentResponse,
@@ -47,9 +61,11 @@ def get_file_storage() -> LocalFileStorage:
 )
 async def upload_document(
     workspace_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     storage: LocalFileStorage = Depends(get_file_storage),
+    media_worker: MediaWorker = Depends(get_media_worker),
     access: WorkspaceAccess = Depends(upload_documents_access),
 ) -> UploadDocumentResponse:
     settings = get_settings()
@@ -132,6 +148,50 @@ async def upload_document(
     )
 
     db.commit()
+
+    if _should_process_media_async(input_type, stored_file.size_bytes):
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="upload.bytes",
+            quantity=len(file_bytes),
+            unit="bytes",
+            source_type="document",
+            source_id=document.id,
+            usage_metadata={"filename": file.filename},
+        )
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=access.user.id,
+            metric_name="document.count",
+            quantity=1,
+            unit="document",
+            source_type="document",
+            source_id=document.id,
+        )
+        db.commit()
+        record_upload()
+
+        background_tasks.add_task(
+            process_media_ingestion_background,
+            db=db,
+            workspace_id=workspace_id,
+            document_id=document.id,
+            job_id=job.id,
+            document_title=document.title,
+            input_path=stored_file.path,
+            input_type=input_type,
+            actor_user_id=access.user.id,
+            media_worker=media_worker,
+        )
+
+        return UploadDocumentResponse(
+            document_id=document.id,
+            file_id=document_file.id,
+            job_id=job.id,
+            status=job.status,
+            chunks_created=0,
+        )
 
     try:
         normalized_document = load_document(
@@ -242,3 +302,116 @@ async def upload_document(
                 "error": str(exc),
             },
         ) from exc
+
+
+def process_media_ingestion_background(
+    db: Session,
+    workspace_id: str,
+    document_id: str,
+    job_id: str,
+    document_title: str,
+    input_path: Path,
+    input_type: InputType,
+    actor_user_id: str,
+    media_worker: MediaWorker,
+) -> None:
+    settings = get_settings()
+    document_repo = DocumentRepository(db)
+
+    try:
+        media_blocks = media_worker.process_media(
+            workspace_id=workspace_id,
+            document_id=document_id,
+            input_path=input_path,
+        )
+
+        if not media_blocks:
+            raise ExtractionError("Media transcription did not produce text.")
+
+        normalized_document = NormalizedDocument(
+            title=document_title,
+            source_type=input_type,
+            blocks=media_blocks,
+        )
+        chunks = chunk_document(
+            document=normalized_document,
+            config=ChunkingConfig(
+                max_tokens=settings.chunk_max_tokens,
+                overlap_tokens=settings.chunk_overlap_tokens,
+            ),
+        )
+
+        for index, chunk in enumerate(chunks):
+            document_repo.add_chunk(
+                workspace_id=workspace_id,
+                document_id=document_id,
+                chunk_index=index,
+                text=chunk.text,
+                source_page=chunk.source_page,
+                source_start_offset=chunk.source_start_offset,
+                source_end_offset=chunk.source_end_offset,
+                token_count=chunk.token_count,
+                source_metadata=chunk.metadata,
+            )
+
+        document = document_repo.get_document_for_workspace(
+            document_id=document_id,
+            workspace_id=workspace_id,
+        )
+        job = db.get(IngestionJob, job_id)
+
+        if document is not None:
+            document_repo.update_document_status(document, DocumentStatus.INDEXED)
+
+        if job is not None:
+            document_repo.update_ingestion_job_status(job, JobStatus.SUCCEEDED)
+
+        usage_repo = UsageRepository(db)
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+            metric_name="chunk.count",
+            quantity=len(chunks),
+            unit="chunk",
+            source_type="document",
+            source_id=document_id,
+        )
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            actor_user_id=actor_user_id,
+            metric_name="chunk.tokens",
+            quantity=sum(chunk.token_count for chunk in chunks),
+            unit="token",
+            source_type="document",
+            source_id=document_id,
+        )
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+
+        failed_job = db.get(IngestionJob, job_id)
+        if failed_job is not None:
+            document_repo.update_ingestion_job_status(
+                failed_job,
+                JobStatus.FAILED,
+                error_message=str(exc),
+            )
+
+        failed_document = document_repo.get_document_for_workspace(
+            document_id=document_id,
+            workspace_id=workspace_id,
+        )
+        if failed_document is not None:
+            document_repo.update_document_status(failed_document, DocumentStatus.FAILED)
+
+        db.commit()
+
+
+def _should_process_media_async(input_type: InputType, file_size_bytes: int) -> bool:
+    settings = get_settings()
+
+    if input_type not in {InputType.AUDIO, InputType.VIDEO}:
+        return False
+
+    return settings.media_async_enabled or file_size_bytes > settings.media_max_sync_size_bytes

@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     ocr_enabled: bool = Field(default=True)
     ocr_low_confidence_threshold: float = Field(default=0.65)
 
+    media_async_enabled: bool = Field(default=True)
+    media_max_sync_size_bytes: int = Field(default=10 * 1024 * 1024)
+    whisper_model_name: str = Field(default="base")
+
     # tests and local boot should work without Docker using SQLite
     database_url: str = Field(default="sqlite:///./rag_platform.db")
 

@@ -11,6 +11,8 @@ class InputType(StrEnum):
     CSV = "csv"
     XLSX = "xlsx"
     IMAGE = "image"
+    AUDIO = "audio"
+    VIDEO = "video"
 
 
 @dataclass(frozen=True)

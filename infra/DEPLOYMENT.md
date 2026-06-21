@@ -25,6 +25,9 @@ Backend settings use the `RAG_PLATFORM_` prefix.
 | `RAG_PLATFORM_LOG_LEVEL` | Log level, usually `INFO`. |
 | `RAG_PLATFORM_LOG_FORMAT` | Use `json` for production logs. |
 | `RAG_PLATFORM_METRICS_ENABLED` | Enables `/metrics` when `true`. |
+| `RAG_PLATFORM_MEDIA_ASYNC_ENABLED` | Processes media uploads with in-process background tasks. |
+| `RAG_PLATFORM_MEDIA_MAX_SYNC_SIZE_BYTES` | Maximum media size considered safe for synchronous processing when async is disabled. |
+| `RAG_PLATFORM_WHISPER_MODEL_NAME` | Local Whisper model name, for example `base`. |
 | `RAG_PLATFORM_CORS_ALLOWED_ORIGINS` | JSON list of allowed frontend origins. |
 
 Frontend builds use:
@@ -53,6 +56,14 @@ Then check:
 - `GET /health`: process health and service metadata.
 - `GET /ready`: database readiness check using `SELECT 1`.
 - `GET /metrics`: Prometheus-style text metrics when enabled.
+
+## Media Processing
+
+Media transcription uses local FFmpeg and local Whisper, not hosted paid APIs. If
+media ingestion is enabled, the API host or image must include the `ffmpeg`
+system binary and enough CPU/memory for the selected Whisper model. The current
+implementation uses FastAPI background tasks for large media; production
+deployments should eventually move transcription to a dedicated worker queue.
 
 ## Deployment Order
 
