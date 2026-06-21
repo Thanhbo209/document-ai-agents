@@ -49,3 +49,6 @@ extend-immutable-calls = [
 [tool.setuptools.packages.find]
 include = ["app*"]
 exclude = ["tests*", "alembic*", "scripts*"]
+
+[project.scripts]
+rag-evals = "evals.run:main"
