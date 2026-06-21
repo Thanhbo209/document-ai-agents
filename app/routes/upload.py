@@ -19,9 +19,7 @@ from app.storage.local import LocalFileStorage
 
 router = APIRouter(tags=["uploads"])
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.UPLOAD_DOCUMENTS)),
-)
+upload_documents_access = require_workspace_permission(WorkspacePermission.UPLOAD_DOCUMENTS)
 
 
 class UploadDocumentResponse(BaseModel):
@@ -47,6 +45,7 @@ async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     storage: LocalFileStorage = Depends(get_file_storage),
+    access: WorkspaceAccess = Depends(upload_documents_access),
 ) -> UploadDocumentResponse:
     settings = get_settings()
 
@@ -54,14 +53,6 @@ async def upload_document(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file must have a filename.",
-        )
-
-    workspace = access.workspace
-
-    if workspace is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found.",
         )
 
     try:

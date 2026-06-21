@@ -1,3 +1,7 @@
+import subprocess
+import sys
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -49,6 +53,23 @@ def test_user_cannot_list_other_workspace_documents(
     )
 
     assert response.status_code == 403
+
+
+def test_authenticated_user_can_list_own_workspace_documents(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    _, workspace_id, headers = create_user_with_workspace(
+        db_session,
+        "reader@example.com",
+    )
+
+    response = client.get(
+        f"/api/v1/workspaces/{workspace_id}/documents",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
 
 
 def test_unauthenticated_workspace_request_is_rejected(
@@ -115,3 +136,26 @@ def test_owner_can_export_review_items(
     )
 
     assert response.status_code == 200
+
+
+def test_workspace_dependencies_are_ruff_b008_clean() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "app/routes",
+            "app/middleware",
+            "--select",
+            "B008",
+        ],
+        cwd=repo_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr

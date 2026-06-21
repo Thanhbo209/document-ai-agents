@@ -11,9 +11,7 @@ from app.reviews.repository import ReviewRepository
 
 router = APIRouter(tags=["exports"])
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.EXPORT_REVIEWS)),
-)
+export_reviews_access = require_workspace_permission(WorkspacePermission.EXPORT_REVIEWS)
 
 
 @router.get("/workspaces/{workspace_id}/exports/review-items")
@@ -22,6 +20,7 @@ def export_review_items(
     format: str = Query(default="json", pattern="^(json|csv)$"),
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(export_reviews_access),
 ) -> Response:
     if db.get(Workspace, workspace_id) is None:
         raise HTTPException(

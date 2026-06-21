@@ -17,15 +17,11 @@ from app.reviews.repository import (
 
 router = APIRouter(tags=["reviews"])
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.CREATE_REVIEWS)),
-)
+create_reviews_access = require_workspace_permission(WorkspacePermission.CREATE_REVIEWS)
 
-access: WorkspaceAccess = (Depends(require_workspace_permission(WorkspacePermission.READ_REVIEWS)),)
+read_reviews_access = require_workspace_permission(WorkspacePermission.READ_REVIEWS)
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.DECIDE_REVIEWS)),
-)
+decide_reviews_access = require_workspace_permission(WorkspacePermission.DECIDE_REVIEWS)
 
 
 class CreateReviewItemRequest(BaseModel):
@@ -69,6 +65,7 @@ def create_review_item(
     workspace_id: str,
     request: CreateReviewItemRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(create_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -95,6 +92,7 @@ def list_review_items(
     workspace_id: str,
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(read_reviews_access),
 ) -> list[ReviewItemResponse]:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -116,6 +114,7 @@ def approve_review_item(
     review_item_id: str,
     request: ReviewDecisionRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(decide_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 
@@ -148,6 +147,7 @@ def reject_review_item(
     review_item_id: str,
     request: ReviewDecisionRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(decide_reviews_access),
 ) -> ReviewItemResponse:
     _ensure_workspace_exists(db, workspace_id)
 

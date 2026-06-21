@@ -2,33 +2,25 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.repositories.documents import DocumentRepository
-from app.repositories.workspaces import WorkspaceRepository
+from tests.helpers import create_authenticated_workspace
 
 
-def create_workspace(db_session: Session) -> str:
-    workspace_repo = WorkspaceRepository(db_session)
-
-    user = workspace_repo.create_user(
+def create_workspace(db_session: Session) -> tuple[str, dict[str, str]]:
+    return create_authenticated_workspace(
+        db_session,
         email="phase14@example.com",
-        display_name="Phase 14 User",
     )
-    workspace = workspace_repo.create_workspace(
-        name="Phase 14 Workspace",
-        owner_user_id=user.id,
-    )
-    db_session.commit()
-
-    return workspace.id
 
 
 def test_list_workspace_documents_returns_metadata(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "notes.txt",
@@ -40,7 +32,10 @@ def test_list_workspace_documents_returns_metadata(
 
     assert response.status_code == 201
 
-    list_response = client.get(f"/api/v1/workspaces/{workspace_id}/documents")
+    list_response = client.get(
+        f"/api/v1/workspaces/{workspace_id}/documents",
+        headers=headers,
+    )
 
     assert list_response.status_code == 200
 
@@ -63,7 +58,7 @@ def test_list_workspace_documents_supports_search(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     document_repo = DocumentRepository(db_session)
     document_repo.create_document(
@@ -80,6 +75,7 @@ def test_list_workspace_documents_supports_search(
 
     response = client.get(
         f"/api/v1/workspaces/{workspace_id}/documents",
+        headers=headers,
         params={"query": "refund"},
     )
 
@@ -95,7 +91,7 @@ def test_list_workspace_documents_supports_status_filter(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     document_repo = DocumentRepository(db_session)
     document_repo.create_document(
@@ -112,6 +108,7 @@ def test_list_workspace_documents_supports_status_filter(
 
     response = client.get(
         f"/api/v1/workspaces/{workspace_id}/documents",
+        headers=headers,
         params={"status": "created"},
     )
 
@@ -126,10 +123,11 @@ def test_failed_upload_appears_with_job_error(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
+    workspace_id, headers = create_workspace(db_session)
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
         files={
             "file": (
                 "broken.pdf",
@@ -141,7 +139,10 @@ def test_failed_upload_appears_with_job_error(
 
     assert response.status_code == 422
 
-    list_response = client.get(f"/api/v1/workspaces/{workspace_id}/documents")
+    list_response = client.get(
+        f"/api/v1/workspaces/{workspace_id}/documents",
+        headers=headers,
+    )
 
     assert list_response.status_code == 200
 

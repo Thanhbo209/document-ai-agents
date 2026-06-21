@@ -26,9 +26,7 @@ from app.services.vector_runtime import get_runtime_embedder, get_runtime_vector
 
 router = APIRouter(tags=["query"])
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.QUERY_DOCUMENTS)),
-)
+query_documents_access = require_workspace_permission(WorkspacePermission.QUERY_DOCUMENTS)
 
 
 class QueryRequest(BaseModel):
@@ -82,8 +80,14 @@ def query_workspace(
     workspace_id: str,
     request: QueryRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(query_documents_access),
 ) -> QueryResponse:
-    return _run_query(workspace_id=workspace_id, request=request, db=db, user_id=access.user.id)
+    return _run_query(
+        workspace_id=workspace_id,
+        request=request,
+        db=db,
+        user_id=access.user.id,
+    )
 
 
 @router.post("/workspaces/{workspace_id}/query/stream")
@@ -91,10 +95,12 @@ def stream_query_workspace(
     workspace_id: str,
     request: QueryRequest,
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(query_documents_access),
 ) -> StreamingResponse:
     response = _run_query(
         workspace_id=workspace_id,
         request=request,
+        user_id=access.user.id,
         db=db,
     )
 
@@ -114,7 +120,6 @@ def _run_query(
     db: Session,
     user_id: str,
 ) -> QueryResponse:
-
     document_ids = _resolve_document_ids(
         db=db,
         workspace_id=workspace_id,

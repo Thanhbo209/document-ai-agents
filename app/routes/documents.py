@@ -12,9 +12,7 @@ from app.permissions.policies import WorkspacePermission
 
 router = APIRouter(tags=["documents"])
 
-access: WorkspaceAccess = (
-    Depends(require_workspace_permission(WorkspacePermission.READ_DOCUMENTS)),
-)
+read_documents_access = require_workspace_permission(WorkspacePermission.READ_DOCUMENTS)
 
 
 class DocumentFileResponse(BaseModel):
@@ -62,6 +60,7 @@ def list_workspace_documents(
     query: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
+    access: WorkspaceAccess = Depends(read_documents_access),
 ) -> DocumentListResponse:
 
     statement = select(Document).where(Document.workspace_id == workspace_id)

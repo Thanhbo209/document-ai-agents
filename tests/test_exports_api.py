@@ -10,11 +10,12 @@ def test_export_review_items_json_includes_evidence(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
-    create_review_item(client, workspace_id)
+    _user_id, workspace_id, headers = create_workspace(db_session)
+    create_review_item(client, workspace_id, headers)
 
     response = client.get(
         f"/api/v1/workspaces/{workspace_id}/exports/review-items",
+        headers=headers,
         params={"format": "json"},
     )
 
@@ -33,11 +34,12 @@ def test_export_review_items_csv_includes_citation_data(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    workspace_id = create_workspace(db_session)
-    create_review_item(client, workspace_id)
+    _user_id, workspace_id, headers = create_workspace(db_session)
+    create_review_item(client, workspace_id, headers)
 
     response = client.get(
         f"/api/v1/workspaces/{workspace_id}/exports/review-items",
+        headers=headers,
         params={"format": "csv"},
     )
 
