@@ -8,6 +8,7 @@ from app.routes.exports import router as exports_router
 from app.routes.query import router as query_router
 from app.routes.reviews import router as reviews_router
 from app.routes.upload import router as upload_router
+from app.routes.usage import router as usage_router
 
 settings = get_settings()
 
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(usage_router, prefix="/api/v1")
 app.include_router(upload_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(query_router, prefix="/api/v1")

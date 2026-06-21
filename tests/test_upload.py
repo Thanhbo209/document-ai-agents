@@ -1,7 +1,11 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.db.models import UsageEvent
+from app.limits.policies import WorkspaceLimitPolicy
 from app.repositories.documents import DocumentRepository
+from app.repositories.workspaces import WorkspaceRepository
 from tests.helpers import create_authenticated_workspace
 
 
@@ -92,6 +96,95 @@ def test_upload_text_file_creates_document_job_file_and_chunk(
     assert chunks[0].source_start_offset == 0
     assert chunks[0].source_end_offset == len("Hello from text ingestion.")
     assert chunks[0].source_metadata["source_type"] == "text"
+
+
+def test_upload_records_usage_metrics(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    workspace_id, headers = create_workspace(db_session)
+    file_bytes = b"Hello from metered upload."
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
+        files={
+            "file": (
+                "metered.txt",
+                file_bytes,
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 201
+
+    payload = response.json()
+    document_repo = DocumentRepository(db_session)
+    chunks = document_repo.list_chunks_for_document(
+        workspace_id=workspace_id,
+        document_id=payload["document_id"],
+    )
+    user = WorkspaceRepository(db_session).get_user_by_email("owner@example.com")
+
+    usage_events = list(
+        db_session.scalars(
+            select(UsageEvent)
+            .where(UsageEvent.workspace_id == workspace_id)
+            .order_by(UsageEvent.metric_name)
+        ).all()
+    )
+    usage_by_metric = {event.metric_name: event for event in usage_events}
+
+    assert set(usage_by_metric) == {
+        "chunk.count",
+        "chunk.tokens",
+        "document.count",
+        "upload.bytes",
+    }
+    assert usage_by_metric["upload.bytes"].quantity == len(file_bytes)
+    assert usage_by_metric["upload.bytes"].unit == "bytes"
+    assert usage_by_metric["upload.bytes"].usage_metadata == {"filename": "metered.txt"}
+    assert usage_by_metric["document.count"].quantity == 1
+    assert usage_by_metric["chunk.count"].quantity == len(chunks)
+    assert usage_by_metric["chunk.tokens"].quantity == sum(chunk.token_count for chunk in chunks)
+    assert {event.source_id for event in usage_events} == {payload["document_id"]}
+    assert {event.actor_user_id for event in usage_events} == {user.id}
+
+
+def test_upload_returns_429_when_quota_is_exceeded(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    workspace_id, headers = create_workspace(db_session)
+    monkeypatch.setattr(
+        "app.limits.service.get_workspace_limit_policy",
+        lambda: WorkspaceLimitPolicy(
+            storage_bytes_limit=1,
+            documents_limit=100,
+            daily_query_limit=100,
+            monthly_embedding_token_limit=500_000,
+            monthly_llm_token_limit=500_000,
+            concurrent_job_limit=2,
+        ),
+    )
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/documents/upload",
+        headers=headers,
+        files={
+            "file": (
+                "too-large-for-quota.txt",
+                b"too large",
+                "text/plain",
+            )
+        },
+    )
+
+    assert response.status_code == 429
+    assert response.json()["detail"]["metric_name"] == "storage.bytes"
+    assert DocumentRepository(db_session).list_documents_for_workspace(workspace_id) == []
 
 
 def test_upload_markdown_file_is_accepted(
