@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.billing.usage import UsageRepository
 from app.core.config import get_settings
 from app.db.models import IngestionJob
@@ -15,6 +16,7 @@ from app.limits.service import QuotaService, quota_error_response
 from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.chunk import ChunkingConfig
 from app.models.enums import DocumentStatus, JobStatus
+from app.observability.metrics import record_upload
 from app.permissions.policies import WorkspacePermission
 from app.processing.chunker import chunk_document
 from app.repositories.documents import DocumentRepository
@@ -84,7 +86,8 @@ async def upload_document(
         )
 
     usage_repo = UsageRepository(db)
-    quota_service = QuotaService(usage_repo)
+    subscription_repo = WorkspaceSubscriptionRepository(db)
+    quota_service = QuotaService(usage_repo, subscription_repo)
 
     try:
         quota_service.assert_can_upload(
@@ -199,6 +202,7 @@ async def upload_document(
             source_id=document.id,
         )
         db.commit()
+        record_upload()
 
         return UploadDocumentResponse(
             document_id=document.id,

@@ -1,21 +1,32 @@
+from app.billing.plans import get_plan_definition
+from app.billing.subscriptions import WorkspaceSubscriptionRepository
 from app.billing.usage import UsageRepository
 from app.limits.policies import (
     LimitExceededError,
+    WorkspaceLimitPolicy,
     assert_within_limit,
-    get_workspace_limit_policy,
 )
 
 
 class QuotaService:
-    def __init__(self, usage_repo: UsageRepository) -> None:
+    def __init__(
+        self,
+        usage_repo: UsageRepository,
+        subscription_repo: WorkspaceSubscriptionRepository,
+    ) -> None:
         self.usage_repo = usage_repo
+        self.subscription_repo = subscription_repo
+
+    def _policy_for_workspace(self, workspace_id: str) -> WorkspaceLimitPolicy:
+        subscription = self.subscription_repo.get_or_create_subscription(workspace_id)
+        return get_plan_definition(subscription.plan_name).limits
 
     def assert_can_upload(
         self,
         workspace_id: str,
         file_size_bytes: int,
     ) -> None:
-        policy = get_workspace_limit_policy()
+        policy = self._policy_for_workspace(workspace_id)
 
         assert_within_limit(
             metric_name="storage.bytes",
@@ -35,7 +46,7 @@ class QuotaService:
         self,
         workspace_id: str,
     ) -> None:
-        policy = get_workspace_limit_policy()
+        policy = self._policy_for_workspace(workspace_id)
 
         assert_within_limit(
             metric_name="query.count",
@@ -49,7 +60,7 @@ class QuotaService:
         workspace_id: str,
         token_count: int,
     ) -> None:
-        policy = get_workspace_limit_policy()
+        policy = self._policy_for_workspace(workspace_id)
 
         assert_within_limit(
             metric_name="embedding.tokens",
@@ -63,7 +74,7 @@ class QuotaService:
         workspace_id: str,
         token_count: int,
     ) -> None:
-        policy = get_workspace_limit_policy()
+        policy = self._policy_for_workspace(workspace_id)
 
         assert_within_limit(
             metric_name="llm.tokens",

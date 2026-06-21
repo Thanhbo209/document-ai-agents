@@ -49,3 +49,67 @@ export function formatApiError(status: number, body: unknown): string {
 
   return `Request failed with status ${status}.`;
 }
+
+export type PlanLimits = {
+  storage_bytes_limit: number;
+  documents_limit: number;
+  daily_query_limit: number;
+  monthly_embedding_token_limit: number;
+  monthly_llm_token_limit: number;
+  concurrent_job_limit: number;
+};
+
+export type BillingPlan = {
+  name: string;
+  display_name: string;
+  description: string;
+  limits: PlanLimits;
+};
+
+export type BillingSubscription = {
+  id: string;
+  workspace_id: string;
+  plan_name: string;
+  status: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+};
+
+export type BillingSummary = {
+  workspace_id: string;
+  subscription: BillingSubscription;
+  plan: BillingPlan;
+};
+
+export type ChangePlanInput = {
+  plan_name: string;
+};
+
+export async function getBillingSummary(
+  workspaceId: string,
+): Promise<BillingSummary> {
+  return apiRequest<BillingSummary>(`/workspaces/${workspaceId}/billing`);
+}
+
+export async function listBillingPlans(
+  workspaceId: string,
+): Promise<BillingPlan[]> {
+  return apiRequest<BillingPlan[]>(`/workspaces/${workspaceId}/billing/plans`);
+}
+
+export async function changeWorkspacePlan(
+  workspaceId: string,
+  planName: string,
+): Promise<BillingSummary> {
+  const input: ChangePlanInput = {
+    plan_name: planName,
+  };
+
+  return apiRequest<BillingSummary>(`/workspaces/${workspaceId}/billing/plan`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+}

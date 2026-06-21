@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { getWorkspaceUsage, UsageMetric } from "../../lib/usage-api";
+import { getWorkspaceUsage, UsageMetric, UsagePlan } from "../../lib/usage-api";
 
 type UsageDashboardProps = {
   workspaceId: string;
 };
 
 export function UsageDashboard({ workspaceId }: UsageDashboardProps) {
+  const [plan, setPlan] = useState<UsagePlan | null>(null);
   const [metrics, setMetrics] = useState<UsageMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -19,6 +21,7 @@ export function UsageDashboard({ workspaceId }: UsageDashboardProps) {
 
       try {
         const response = await getWorkspaceUsage(workspaceId);
+        setPlan(response.plan);
         setMetrics(response.metrics);
       } catch (error) {
         setErrorMessage(
@@ -44,6 +47,12 @@ export function UsageDashboard({ workspaceId }: UsageDashboardProps) {
             Track storage, documents, queries, chunks, and answer token usage.
           </p>
           <p className="mt-3 font-mono text-xs text-slate-400">{workspaceId}</p>
+          <Link
+            href={`/billing/${workspaceId}`}
+            className="mt-4 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+          >
+            View billing
+          </Link>
         </header>
 
         {errorMessage && (
@@ -57,11 +66,27 @@ export function UsageDashboard({ workspaceId }: UsageDashboardProps) {
             Loading usage...
           </div>
         ) : (
-          <section className="grid gap-4 md:grid-cols-2">
-            {metrics.map((metric) => (
-              <UsageCard key={metric.metric_name} metric={metric} />
-            ))}
-          </section>
+          <div className="space-y-6">
+            {plan && (
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm font-medium text-slate-500">
+                  Current plan
+                </p>
+                <h2 className="mt-2 text-2xl font-bold text-slate-950">
+                  {plan.display_name}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Status: {plan.status}
+                </p>
+              </section>
+            )}
+
+            <section className="grid gap-4 md:grid-cols-2">
+              {metrics.map((metric) => (
+                <UsageCard key={metric.metric_name} metric={metric} />
+              ))}
+            </section>
+          </div>
         )}
       </div>
     </main>

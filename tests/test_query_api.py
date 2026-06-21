@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.billing.usage import UsageRepository
 from app.db.models import Citation, ConversationMessage, UsageEvent
-from app.limits.policies import WorkspaceLimitPolicy
 from tests.helpers import create_authenticated_workspace
 
 
@@ -143,20 +143,18 @@ def test_query_workspace_records_usage_metrics(
 def test_query_workspace_returns_429_when_quota_is_exceeded(
     client: TestClient,
     db_session: Session,
-    monkeypatch,
 ) -> None:
     workspace_id, headers = create_workspace(db_session)
-    monkeypatch.setattr(
-        "app.limits.service.get_workspace_limit_policy",
-        lambda: WorkspaceLimitPolicy(
-            storage_bytes_limit=100 * 1024 * 1024,
-            documents_limit=100,
-            daily_query_limit=0,
-            monthly_embedding_token_limit=500_000,
-            monthly_llm_token_limit=500_000,
-            concurrent_job_limit=2,
-        ),
-    )
+    usage_repo = UsageRepository(db_session)
+    for _ in range(100):
+        usage_repo.record_usage(
+            workspace_id=workspace_id,
+            metric_name="query.count",
+            quantity=1,
+            unit="query",
+            source_type="conversation",
+        )
+    db_session.commit()
 
     response = client.post(
         f"/api/v1/workspaces/{workspace_id}/query",
