@@ -26,7 +26,9 @@ export function LoginForm() {
 
       setAccessToken(response.access_token);
 
-      if (response.default_workspace_id) {
+      if (response.user.is_platform_admin) {
+        router.push("/admin");
+      } else if (response.default_workspace_id) {
         router.push(`/workspaces/${response.default_workspace_id}`);
       } else {
         router.push("/");

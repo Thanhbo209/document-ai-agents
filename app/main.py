@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin.routes import router as admin_router
 from app.core.config import get_settings
 from app.middleware.request_id import RequestIDMiddleware
 from app.observability.logging import configure_logging
@@ -42,4 +43,5 @@ app.include_router(documents_router, prefix="/api/v1")
 app.include_router(query_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1")
 app.include_router(exports_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
