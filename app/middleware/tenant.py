@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.db.models import User, Workspace, WorkspaceMember
 from app.db.session import get_db
+from app.models.enums import WorkspaceStatus
 from app.permissions.policies import WorkspacePermission, has_workspace_permission
 from app.repositories.workspaces import WorkspaceRepository
 
@@ -20,6 +21,7 @@ class WorkspaceAccess:
 
 def require_workspace_permission(
     permission: WorkspacePermission,
+    block_inactive_workspace: bool = True,
 ) -> Callable:
     def dependency(
         workspace_id: str,
@@ -52,6 +54,9 @@ def require_workspace_permission(
                 detail="You do not have permission to perform this action.",
             )
 
+        if block_inactive_workspace:
+            _raise_for_inactive_workspace(workspace)
+
         return WorkspaceAccess(
             workspace=workspace,
             user=current_user,
@@ -59,3 +64,17 @@ def require_workspace_permission(
         )
 
     return dependency
+
+
+def _raise_for_inactive_workspace(workspace: Workspace) -> None:
+    if workspace.status == WorkspaceStatus.PENDING_DELETION.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Workspace is pending deletion.",
+        )
+
+    if workspace.status == WorkspaceStatus.DELETED.value:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Workspace has been deleted.",
+        )

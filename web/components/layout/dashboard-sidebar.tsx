@@ -27,7 +27,7 @@ export function DashboardSidebar({
     <aside className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div
         className={[
-          "flex items-center gap-3 px-4 py-5",
+          "flex items-center px-4 py-5",
           isCollapsed ? "justify-center" : "justify-between",
         ].join(" ")}
       >
@@ -37,16 +37,13 @@ export function DashboardSidebar({
             isCollapsed ? "justify-center" : "",
           ].join(" ")}
         >
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground shadow-sm">
-            RP
-          </div>
           {!isCollapsed && (
             <div className="min-w-0">
-            <p className="text-sm font-semibold">RAG Platform</p>
-            <p className="text-xs text-sidebar-foreground/50">
-              {mode === "admin" ? "Operations" : "Workspace"}
-            </p>
-          </div>
+              <p className="text-sm font-semibold">RAG Platform</p>
+              <p className="text-xs text-sidebar-foreground/50">
+                {mode === "admin" ? "Operations" : "Workspace"}
+              </p>
+            </div>
           )}
         </div>
 
@@ -95,15 +92,15 @@ export function DashboardSidebar({
 
         {!isCollapsed && (
           <div className="rounded-2xl bg-sidebar-accent px-3 py-3">
-          <p className="text-xs font-medium text-sidebar-accent-foreground">
-            {mode === "admin" ? "Privacy boundary" : "Active workspace"}
-          </p>
-          <p className="mt-1 break-all font-mono text-[11px] text-sidebar-foreground/55">
-            {mode === "admin"
-              ? "Metadata only. No private document text."
-              : (workspaceId ?? "No workspace")}
-          </p>
-        </div>
+            <p className="text-xs font-medium text-sidebar-accent-foreground">
+              {mode === "admin" ? "Privacy boundary" : "Active workspace"}
+            </p>
+            <p className="mt-1 break-all font-mono text-[11px] text-sidebar-foreground/55">
+              {mode === "admin"
+                ? "Metadata only. No private document text."
+                : (workspaceId ?? "No workspace")}
+            </p>
+          </div>
         )}
       </div>
     </aside>

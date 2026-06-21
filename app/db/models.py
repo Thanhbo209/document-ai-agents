@@ -18,7 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import DocumentStatus, JobStatus, WorkspaceRole
+from app.models.enums import DocumentStatus, JobStatus, WorkspaceRole, WorkspaceStatus
 
 
 def new_uuid() -> str:
@@ -65,6 +65,19 @@ class Workspace(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     owner_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(40),
+        default=WorkspaceStatus.ACTIVE.value,
+        nullable=False,
+    )
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     members: Mapped[list[WorkspaceMember]] = relationship(
         back_populates="workspace",
