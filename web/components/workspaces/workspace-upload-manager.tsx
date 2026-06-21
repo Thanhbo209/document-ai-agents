@@ -1,11 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DashboardShell } from "../layout/dashboard-shell";
+import { Button } from "../ui/button";
+import { ErrorState } from "../ui/error-state";
+import { LoadingState } from "../ui/loading-state";
+import { PageHeader } from "../ui/page-header";
 import { UploadDropzone } from "../upload/upload-dropzone";
 import { JobProgressCards } from "../upload/job-progress-cards";
 import { DocumentTable } from "../documents/document-table";
 import { listDocuments, WorkspaceDocument } from "../../lib/upload-api";
-import Link from "next/link";
 
 type WorkspaceUploadManagerProps = {
   workspaceId: string;
@@ -46,36 +50,28 @@ export function WorkspaceUploadManager({
   }, [refreshDocuments]);
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      <header className="mb-8">
-        <p className="text-sm font-medium text-slate-500">Workspace</p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-          Upload Manager
-        </h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
-          Upload documents, monitor ingestion jobs, inspect failures, and search
-          document metadata.
-        </p>
-        <p className="mt-3 font-mono text-xs text-slate-400">{workspaceId}</p>
-        <Link
-          href={`/chat/${workspaceId}`}
-          className="mt-4 inline-flex rounded-lg bg-slate-950 px-4 py-2 text-sm font-medium text-white"
-        >
-          Open chat
-        </Link>
-        <Link
-          href={`/usage/${workspaceId}`}
-          className="mt-2 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
-        >
-          View usage
-        </Link>
-        <Link
-          href={`/billing/${workspaceId}`}
-          className="mt-2 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
-        >
-          View billing
-        </Link>
-      </header>
+    <DashboardShell
+      activeItem="overview"
+      title="Workspace overview"
+      description="Upload, index, review, and query documents from one operational console."
+      workspaceId={workspaceId}
+    >
+      <PageHeader
+        kicker="Workspace"
+        title="Your document operations hub"
+        description="Track ingestion health, add source files, and move quickly into grounded chat or review workflows."
+        meta={
+          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
+        }
+        actions={
+          <>
+            <Button href={`/chat/${workspaceId}`}>Open chat</Button>
+            <Button href={`/usage/${workspaceId}`} variant="secondary">
+              View usage
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-6">
         <UploadDropzone
@@ -85,19 +81,19 @@ export function WorkspaceUploadManager({
 
         <JobProgressCards documents={documents} />
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-4 md:grid-cols-[1fr_220px_auto]">
+        <section className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by title or source type..."
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none ring-slate-900 focus:ring-2"
+              className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             />
 
             <select
               value={status}
               onChange={(event) => setStatus(event.target.value)}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm outline-none ring-slate-900 focus:ring-2"
+              className="rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring"
             >
               <option value="">All statuses</option>
               <option value="created">Created</option>
@@ -106,30 +102,24 @@ export function WorkspaceUploadManager({
               <option value="failed">Failed</option>
             </select>
 
-            <button
-              type="button"
-              onClick={() => void refreshDocuments()}
-              className="rounded-lg bg-slate-950 px-5 py-2 text-sm font-medium text-white"
-            >
+            <Button onClick={() => void refreshDocuments()}>
               Refresh
-            </button>
+            </Button>
           </div>
 
           {errorMessage && (
-            <p className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errorMessage}
-            </p>
+            <div className="mt-4">
+              <ErrorState message={errorMessage} />
+            </div>
           )}
         </section>
 
         {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
-            Loading documents...
-          </div>
+          <LoadingState title="Loading documents" />
         ) : (
           <DocumentTable documents={documents} />
         )}
       </div>
-    </div>
+    </DashboardShell>
   );
 }

@@ -1,8 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getWorkspaceUsage, UsageMetric, UsagePlan } from "../../lib/usage-api";
+import { DashboardShell } from "../layout/dashboard-shell";
+import { Button } from "../ui/button";
+import { EmptyState } from "../ui/empty-state";
+import { ErrorState } from "../ui/error-state";
+import { LoadingState } from "../ui/loading-state";
+import { PageHeader } from "../ui/page-header";
+import { StatCard } from "../ui/stat-card";
+import { StatusBadge } from "../ui/status-badge";
 
 type UsageDashboardProps = {
   workspaceId: string;
@@ -35,61 +42,96 @@ export function UsageDashboard({ workspaceId }: UsageDashboardProps) {
     void loadUsage();
   }, [workspaceId]);
 
+  const storageMetric = metrics.find(
+    (metric) => metric.metric_name === "storage.bytes",
+  );
+  const queryMetric = metrics.find(
+    (metric) => metric.metric_name === "query.count",
+  );
+  const documentMetric = metrics.find(
+    (metric) => metric.metric_name === "document.count",
+  );
+
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-8">
-          <p className="text-sm font-medium text-slate-500">Workspace usage</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-            Quotas and cost controls
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Track storage, documents, queries, chunks, and answer token usage.
-          </p>
-          <p className="mt-3 font-mono text-xs text-slate-400">{workspaceId}</p>
-          <Link
-            href={`/billing/${workspaceId}`}
-            className="mt-4 inline-flex rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
-          >
+    <DashboardShell
+      activeItem="usage"
+      title="Usage and limits"
+      description="Track quota pressure across storage, documents, queries, chunks, and token usage."
+      workspaceId={workspaceId}
+    >
+      <PageHeader
+        kicker="Usage"
+        title="Quota pressure without guesswork"
+        description="Usage metrics roll up into the active plan so teams can see which limit matters before a request is blocked."
+        meta={
+          <p className="font-mono text-xs text-muted-foreground">{workspaceId}</p>
+        }
+        actions={
+          <Button href={`/billing/${workspaceId}`} variant="secondary">
             View billing
-          </Link>
-        </header>
+          </Button>
+        }
+      />
 
-        {errorMessage && (
-          <p className="mb-6 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        )}
+      {errorMessage && (
+        <div className="mb-6">
+          <ErrorState message={errorMessage} />
+        </div>
+      )}
 
-        {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-500">
-            Loading usage...
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {plan && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-medium text-slate-500">
-                  Current plan
-                </p>
-                <h2 className="mt-2 text-2xl font-bold text-slate-950">
-                  {plan.display_name}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Status: {plan.status}
-                </p>
-              </section>
-            )}
+      {isLoading ? (
+        <LoadingState title="Loading usage" />
+      ) : (
+        <div className="space-y-6">
+          {plan && (
+            <section className="rounded-3xl bg-card p-6 shadow-sm ring-1 ring-border/70">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Current plan
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-card-foreground">
+                    {plan.display_name}
+                  </h2>
+                </div>
+                <StatusBadge status={plan.status} />
+              </div>
+            </section>
+          )}
 
+          <section className="grid grid-flow-dense gap-4 md:grid-cols-3">
+            <StatCard
+              label="Storage"
+              value={storageMetric ? formatQuantity(storageMetric.current, storageMetric.unit) : "-"}
+              detail="Uploaded source bytes"
+            />
+            <StatCard
+              label="Documents"
+              value={documentMetric?.current ?? "-"}
+              detail="Tracked document records"
+            />
+            <StatCard
+              label="Queries"
+              value={queryMetric?.current ?? "-"}
+              detail="Questions asked today"
+            />
+          </section>
+
+          {metrics.length === 0 ? (
+            <EmptyState
+              title="No usage recorded yet"
+              description="Upload documents or run a query to start collecting usage metrics."
+            />
+          ) : (
             <section className="grid gap-4 md:grid-cols-2">
               {metrics.map((metric) => (
                 <UsageCard key={metric.metric_name} metric={metric} />
               ))}
             </section>
-          </div>
-        )}
-      </div>
-    </main>
+          )}
+        </div>
+      )}
+    </DashboardShell>
   );
 }
 
@@ -100,25 +142,21 @@ function UsageCard({ metric }: { metric: UsageMetric }) {
       : null;
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="rounded-3xl bg-card p-5 shadow-sm ring-1 ring-border/70">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">
-            {metric.metric_name}
+          <p className="text-sm font-medium text-muted-foreground">
+            {humanizeMetric(metric.metric_name)}
           </p>
-          <p className="mt-2 text-3xl font-bold text-slate-950">
+          <p className="mt-2 font-mono text-3xl font-semibold tracking-tight text-card-foreground">
             {formatQuantity(metric.current, metric.unit)}
           </p>
         </div>
 
-        {percentage !== null && (
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            {percentage}%
-          </span>
-        )}
+        {percentage !== null && <StatusBadge status={`${percentage}%`} />}
       </div>
 
-      <p className="mt-3 text-sm text-slate-500">
+      <p className="mt-3 text-sm text-muted-foreground">
         Limit:{" "}
         {metric.limit === null
           ? "Not limited"
@@ -126,15 +164,19 @@ function UsageCard({ metric }: { metric: UsageMetric }) {
       </p>
 
       {percentage !== null && (
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-slate-950"
+            className="h-full rounded-full bg-primary transition-all duration-500"
             style={{ width: `${percentage}%` }}
           />
         </div>
       )}
     </article>
   );
+}
+
+function humanizeMetric(metricName: string): string {
+  return metricName.replaceAll(".", " ");
 }
 
 function formatQuantity(value: number, unit: string): string {
@@ -154,5 +196,9 @@ function formatBytes(value: number): string {
     return `${(value / 1024).toFixed(1)} KB`;
   }
 
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value < 1024 * 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
