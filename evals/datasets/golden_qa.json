@@ -1,0 +1,71 @@
+[
+  {
+    "id": "qa_refund_policy",
+    "query": "What is the refund policy?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-refund-1",
+        "document_id": "doc-refund",
+        "workspace_id": "workspace-eval",
+        "text": "Refund policy allows cancellation within 14 days.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 51,
+        "score": 0.95,
+        "metadata": {
+          "filename": "refund.txt"
+        }
+      }
+    ],
+    "required_answer_terms": ["refund", "cancellation", "14 days"],
+    "required_citations": ["S1"],
+    "expect_no_answer": false
+  },
+  {
+    "id": "qa_heading_education",
+    "query": "What education is listed?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-resume-1",
+        "document_id": "doc-resume",
+        "workspace_id": "workspace-eval",
+        "text": "Education\nHCM University of Foreign Languages and Information Technology.\nExpected graduation: April 2027.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 103,
+        "score": 0.91,
+        "metadata": {
+          "filename": "resume.txt"
+        }
+      }
+    ],
+    "required_answer_terms": ["education", "HCM University"],
+    "required_citations": ["S1"],
+    "expect_no_answer": false
+  },
+  {
+    "id": "qa_no_answer",
+    "query": "What is the warranty period?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-shipping-1",
+        "document_id": "doc-shipping",
+        "workspace_id": "workspace-eval",
+        "text": "Shipping takes five business days.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 34,
+        "score": 0.72,
+        "metadata": {
+          "filename": "shipping.txt"
+        }
+      }
+    ],
+    "required_answer_terms": [],
+    "required_citations": [],
+    "expect_no_answer": true
+  }
+]
