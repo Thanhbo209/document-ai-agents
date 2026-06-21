@@ -10,11 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.answers.generator import GroundedAnswerGenerationError, GroundedAnswerGenerator
 from app.answers.types import AnswerCitation, AnswerSource, GroundedAnswer
-from app.db.models import Document, Workspace
+from app.db.models import Document
 from app.db.session import get_db
 from app.indexing.indexer import DocumentIndexer
 from app.llm.client import LocalGroundedLLMClient
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
 from app.models.enums import MessageRole
+from app.permissions.policies import WorkspacePermission
 from app.repositories.conversations import ConversationRepository
 from app.retrieval.filters import RetrievalFilters
 from app.retrieval.reranker import KeywordOverlapReranker
@@ -23,6 +25,10 @@ from app.retrieval.types import RetrievedChunk
 from app.services.vector_runtime import get_runtime_embedder, get_runtime_vector_store
 
 router = APIRouter(tags=["query"])
+
+access: WorkspaceAccess = (
+    Depends(require_workspace_permission(WorkspacePermission.QUERY_DOCUMENTS)),
+)
 
 
 class QueryRequest(BaseModel):
@@ -77,11 +83,7 @@ def query_workspace(
     request: QueryRequest,
     db: Session = Depends(get_db),
 ) -> QueryResponse:
-    return _run_query(
-        workspace_id=workspace_id,
-        request=request,
-        db=db,
-    )
+    return _run_query(workspace_id=workspace_id, request=request, db=db, user_id=access.user.id)
 
 
 @router.post("/workspaces/{workspace_id}/query/stream")
@@ -110,14 +112,8 @@ def _run_query(
     workspace_id: str,
     request: QueryRequest,
     db: Session,
+    user_id: str,
 ) -> QueryResponse:
-    workspace = db.get(Workspace, workspace_id)
-
-    if workspace is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Workspace not found.",
-        )
 
     document_ids = _resolve_document_ids(
         db=db,
@@ -155,6 +151,7 @@ def _run_query(
     user_message_id, assistant_message_id = _persist_conversation(
         db=db,
         workspace_id=workspace_id,
+        user_id=user_id,
         query=request.query,
         answer=answer,
     )
@@ -237,6 +234,7 @@ def _retrieve_chunks(
 def _persist_conversation(
     db: Session,
     workspace_id: str,
+    user_id: str,
     query: str,
     answer: GroundedAnswer,
 ) -> tuple[str, str]:
@@ -246,6 +244,7 @@ def _persist_conversation(
         workspace_id=workspace_id,
         role=MessageRole.USER,
         content=query,
+        user_id=user_id,
     )
     assistant_message = conversation_repo.create_message(
         workspace_id=workspace_id,

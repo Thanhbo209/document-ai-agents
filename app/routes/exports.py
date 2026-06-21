@@ -5,9 +5,15 @@ from app.audit.events import AuditEventRepository
 from app.db.models import Workspace
 from app.db.session import get_db
 from app.exports.review_exports import export_review_items_csv, export_review_items_json
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
+from app.permissions.policies import WorkspacePermission
 from app.reviews.repository import ReviewRepository
 
 router = APIRouter(tags=["exports"])
+
+access: WorkspaceAccess = (
+    Depends(require_workspace_permission(WorkspacePermission.EXPORT_REVIEWS)),
+)
 
 
 @router.get("/workspaces/{workspace_id}/exports/review-items")
@@ -35,6 +41,7 @@ def export_review_items(
         event_type="export.review_items",
         entity_type="export",
         entity_id=None,
+        actor_user_id=access.user.id,
         payload={
             "format": format,
             "status": status_filter,

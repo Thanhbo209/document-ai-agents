@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Workspace
 from app.db.session import get_db
+from app.middleware.tenant import WorkspaceAccess, require_workspace_permission
+from app.permissions.policies import WorkspacePermission
 from app.reviews.repository import (
     InvalidReviewTransitionError,
     ReviewItemNotFoundError,
@@ -14,6 +16,16 @@ from app.reviews.repository import (
 )
 
 router = APIRouter(tags=["reviews"])
+
+access: WorkspaceAccess = (
+    Depends(require_workspace_permission(WorkspacePermission.CREATE_REVIEWS)),
+)
+
+access: WorkspaceAccess = (Depends(require_workspace_permission(WorkspacePermission.READ_REVIEWS)),)
+
+access: WorkspaceAccess = (
+    Depends(require_workspace_permission(WorkspacePermission.DECIDE_REVIEWS)),
+)
 
 
 class CreateReviewItemRequest(BaseModel):
@@ -113,7 +125,7 @@ def approve_review_item(
         item = repo.approve_review_item(
             workspace_id=workspace_id,
             review_item_id=review_item_id,
-            reviewer_user_id=request.reviewer_user_id,
+            reviewer_user_id=request.reviewer_user_id or access.user.id,
             reviewed_value=request.reviewed_value,
             comments=request.comments,
         )
