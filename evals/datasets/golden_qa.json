@@ -67,5 +67,115 @@
     "required_answer_terms": [],
     "required_citations": [],
     "expect_no_answer": true
+  },
+  {
+    "id": "qa_heading_security_controls",
+    "query": "What security controls are listed?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-security-1",
+        "document_id": "doc-security",
+        "workspace_id": "workspace-eval",
+        "text": "Security Controls\nJWT authentication is required for protected API routes.\nAudit events track billing and deletion changes.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 119,
+        "score": 0.93,
+        "metadata": {
+          "filename": "security.md"
+        }
+      }
+    ],
+    "required_answer_terms": ["Security Controls", "JWT authentication"],
+    "required_citations": ["S1"],
+    "expect_no_answer": false
+  },
+  {
+    "id": "qa_no_answer_data_residency",
+    "query": "What is the data residency region?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-onboarding-1",
+        "document_id": "doc-onboarding",
+        "workspace_id": "workspace-eval",
+        "text": "The onboarding guide lists support hours and escalation contacts.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 63,
+        "score": 0.75,
+        "metadata": {
+          "filename": "onboarding.txt"
+        }
+      }
+    ],
+    "required_answer_terms": [],
+    "required_citations": [],
+    "expect_no_answer": true
+  },
+  {
+    "id": "qa_multi_sentence_backup_requirements",
+    "query": "What backup requirements are listed?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-backup-1",
+        "document_id": "doc-backup",
+        "workspace_id": "workspace-eval",
+        "text": "Backup requirements include daily database dumps. Backup requirements also include restoring uploads with matching database snapshots.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 124,
+        "score": 0.94,
+        "metadata": {
+          "filename": "backup.md"
+        }
+      }
+    ],
+    "required_answer_terms": [
+      "daily database dumps",
+      "restoring uploads",
+      "database snapshots"
+    ],
+    "required_citations": ["S1"],
+    "expect_no_answer": false
+  },
+  {
+    "id": "qa_multi_source_citation_correctness",
+    "query": "What does the refund policy say and what does the shipping policy say?",
+    "sources": [
+      {
+        "source_id": "S1",
+        "chunk_id": "chunk-refund-2",
+        "document_id": "doc-refund",
+        "workspace_id": "workspace-eval",
+        "text": "The refund policy allows cancellation within 14 days.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 54,
+        "score": 0.96,
+        "metadata": {
+          "filename": "refund.txt"
+        }
+      },
+      {
+        "source_id": "S2",
+        "chunk_id": "chunk-shipping-2",
+        "document_id": "doc-shipping",
+        "workspace_id": "workspace-eval",
+        "text": "The shipping policy says standard delivery takes five business days.",
+        "source_page": null,
+        "source_start_offset": 0,
+        "source_end_offset": 68,
+        "score": 0.9,
+        "metadata": {
+          "filename": "shipping.txt"
+        }
+      }
+    ],
+    "required_answer_terms": ["14 days", "five business days"],
+    "required_citations": ["S1", "S2"],
+    "expect_no_answer": false
   }
 ]

@@ -102,6 +102,46 @@ def test_member_cannot_export_workspace_data(
     assert response.status_code == 403
 
 
+def test_member_cannot_access_compliance_settings_or_delete_request(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    repo = WorkspaceRepository(db_session)
+    owner = repo.create_user(
+        email="settings-owner-member-check@example.com",
+        password_hash=hash_password("password123"),
+    )
+    member = repo.create_user(
+        email="settings-member-check@example.com",
+        password_hash=hash_password("password123"),
+    )
+    workspace = repo.create_workspace(
+        name="Owner Only Compliance",
+        owner_user_id=owner.id,
+    )
+    repo.add_member(
+        workspace_id=workspace.id,
+        user_id=member.id,
+        role=WorkspaceRole.MEMBER,
+    )
+    db_session.commit()
+
+    headers = auth_headers_for_user(member.id, member.email)
+
+    settings_response = client.get(
+        f"/api/v1/workspaces/{workspace.id}/settings",
+        headers=headers,
+    )
+    delete_response = client.post(
+        f"/api/v1/workspaces/{workspace.id}/compliance/delete-request",
+        headers=headers,
+        json={"reason": "Member should not be able to request deletion"},
+    )
+
+    assert settings_response.status_code == 403
+    assert delete_response.status_code == 403
+
+
 def test_owner_can_request_workspace_deletion(
     client: TestClient,
     db_session: Session,
@@ -149,6 +189,29 @@ def test_delete_request_creates_audit_event(
 
     assert [event.event_type for event in events] == ["compliance.workspace_deletion_requested"]
     assert events[0].payload == {"reason": "Archive tenant"}
+
+
+def test_mark_deleted_creates_audit_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    workspace_id, headers = create_authenticated_workspace(
+        db_session,
+        email="mark-deleted-audit-owner@example.com",
+    )
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace_id}/compliance/mark-deleted",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    events = list(
+        db_session.scalars(select(AuditEvent).where(AuditEvent.workspace_id == workspace_id)).all()
+    )
+
+    assert [event.event_type for event in events] == ["compliance.workspace_deleted"]
 
 
 def test_pending_deletion_workspace_blocks_upload_and_query(

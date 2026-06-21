@@ -13,6 +13,8 @@ env/
 
 # Environment files
 .env
+.env.*
+!.env.example
 
 # OS / editor
 .DS_Store
@@ -26,3 +28,14 @@ build/
 
 # Local uploaded files
 storage/
+
+# Local database and generated reports
+rag_platform.db
+*.sqlite
+*.sqlite3
+evals/reports/
+
+# Frontend generated files
+web/.next/
+web/node_modules/
+web/out/
