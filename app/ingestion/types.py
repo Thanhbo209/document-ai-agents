@@ -13,6 +13,9 @@ class InputType(StrEnum):
     IMAGE = "image"
     AUDIO = "audio"
     VIDEO = "video"
+    REPO = "repo"
+    WEB = "web"
+    YOUTUBE = "youtube"
 
 
 @dataclass(frozen=True)

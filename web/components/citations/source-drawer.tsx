@@ -1,5 +1,9 @@
 import { QuerySource } from "../../lib/chat-api";
-import { formatCitationLabel, formatMetadataTimestamp } from "../../lib/citations";
+import {
+  formatCitationLabel,
+  formatMetadataTimestamp,
+  formatSourceMetadataSummary,
+} from "../../lib/citations";
 import { Button } from "../ui/button";
 
 type SourceDrawerProps = {
@@ -13,6 +17,7 @@ export function SourceDrawer({ source, onClose }: SourceDrawerProps) {
   }
 
   const timestamp = formatMetadataTimestamp(source.metadata);
+  const sourceSummary = formatSourceMetadataSummary(source.metadata);
 
   return (
     <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-border bg-card shadow-2xl">
@@ -24,6 +29,9 @@ export function SourceDrawer({ source, onClose }: SourceDrawerProps) {
           <h2 className="mt-1 text-lg font-semibold text-card-foreground">
             Citation context
           </h2>
+          {sourceSummary && (
+            <p className="mt-1 text-sm text-muted-foreground">{sourceSummary}</p>
+          )}
         </div>
 
         <Button variant="secondary" onClick={onClose}>

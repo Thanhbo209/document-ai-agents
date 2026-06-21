@@ -28,6 +28,13 @@ Backend settings use the `RAG_PLATFORM_` prefix.
 | `RAG_PLATFORM_MEDIA_ASYNC_ENABLED` | Processes media uploads with in-process background tasks. |
 | `RAG_PLATFORM_MEDIA_MAX_SYNC_SIZE_BYTES` | Maximum media size considered safe for synchronous processing when async is disabled. |
 | `RAG_PLATFORM_WHISPER_MODEL_NAME` | Local Whisper model name, for example `base`. |
+| `RAG_PLATFORM_CONNECTOR_WEB_ALLOWED_DOMAINS` | Optional JSON list of domains allowed for web connector fetches. |
+| `RAG_PLATFORM_CONNECTOR_WEB_BLOCKED_DOMAINS` | Optional JSON list of domains blocked for web connector fetches. |
+| `RAG_PLATFORM_CONNECTOR_WEB_MAX_RESPONSE_BYTES` | Maximum response bytes fetched by the web connector. |
+| `RAG_PLATFORM_CONNECTOR_WEB_TIMEOUT_SECONDS` | Timeout for web connector fetches. |
+| `RAG_PLATFORM_REPO_INGESTION_MAX_FILES` | Maximum files read from a repository ZIP upload. |
+| `RAG_PLATFORM_REPO_INGESTION_MAX_TOTAL_BYTES` | Maximum total bytes read from a repository ZIP upload. |
+| `RAG_PLATFORM_REPO_INGESTION_MAX_FILE_BYTES` | Maximum bytes read from one repository file. |
 | `RAG_PLATFORM_CORS_ALLOWED_ORIGINS` | JSON list of allowed frontend origins. |
 
 Frontend builds use:
@@ -64,6 +71,17 @@ media ingestion is enabled, the API host or image must include the `ffmpeg`
 system binary and enough CPU/memory for the selected Whisper model. The current
 implementation uses FastAPI background tasks for large media; production
 deployments should eventually move transcription to a dedicated worker queue.
+
+## Connector Processing
+
+Web connector ingestion requires outbound HTTPS access from the API host. Keep
+domain allowlists/blocklists strict for controlled deployments, and remember that
+the connector intentionally blocks localhost and private/internal IP ranges.
+
+YouTube transcript ingestion depends on transcript availability and the
+`youtube-transcript-api` package. Repository ZIP ingestion is local-only and does
+not clone arbitrary Git URLs; uploaded ZIPs are filtered for safe paths, file
+types, and size limits.
 
 ## Deployment Order
 

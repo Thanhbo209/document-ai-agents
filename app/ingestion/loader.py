@@ -5,6 +5,7 @@ from app.ingestion.errors import ExtractionError, UnsupportedFileTypeError
 from app.ingestion.ocr import OcrEngine
 from app.ingestion.office import extract_docx_file, extract_pptx_file
 from app.ingestion.pdf import extract_image_file, extract_pdf_file
+from app.ingestion.repos import RepoIngestionPolicy, extract_repo_zip_blocks
 from app.ingestion.tables import extract_csv_file, extract_xlsx_file
 from app.ingestion.text import extract_text_file
 from app.ingestion.transcribe import Transcriber, WhisperTranscriber
@@ -37,6 +38,7 @@ _EXTENSION_TO_INPUT_TYPE = {
     ".mov": InputType.VIDEO,
     ".mkv": InputType.VIDEO,
     ".webm": InputType.VIDEO,
+    ".zip": InputType.REPO,
 }
 
 _SUPPORTED_EXTENSIONS = ", ".join(sorted(_EXTENSION_TO_INPUT_TYPE))
@@ -121,6 +123,27 @@ def load_document(
         return NormalizedDocument(
             title=title,
             source_type=input_type,
+            blocks=blocks,
+        )
+
+    if input_type == InputType.REPO:
+        settings = get_settings()
+        try:
+            blocks = extract_repo_zip_blocks(
+                zip_path=path,
+                repo_name=title,
+                policy=RepoIngestionPolicy(
+                    max_files=settings.repo_ingestion_max_files,
+                    max_file_bytes=settings.repo_ingestion_max_file_bytes,
+                    max_total_bytes=settings.repo_ingestion_max_total_bytes,
+                ),
+            )
+        except Exception as exc:
+            raise ExtractionError(str(exc)) from exc
+
+        return NormalizedDocument(
+            title=title,
+            source_type=InputType.REPO,
             blocks=blocks,
         )
 

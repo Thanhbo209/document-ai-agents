@@ -17,6 +17,9 @@ answers and citations.
 - Images through OCR (`PNG`, `JPG`, `JPEG`, `TIFF`, `BMP`)
 - Audio transcription (`MP3`, `WAV`, `M4A`, `FLAC`, `OGG`)
 - Video transcription (`MP4`, `MOV`, `MKV`, `WEBM`)
+- Repository ZIP archives
+- Web page connector ingestion
+- YouTube transcript connector ingestion
 
 ## OCR Ingestion
 
@@ -217,6 +220,142 @@ storage/artifacts/{workspace_id}/{document_id}/media/transcript.json
 The transcript JSON is an operational artifact for debugging and reprocessing,
 not a user-facing raw JSON view.
 
+## Connectors Ingestion
+
+Connector ingestion lets a workspace owner or member with upload permission turn
+external source metadata into the same normalized `ExtractedTextBlock` format as
+file uploads. Connector blocks are chunked, stored, indexed, and cited through
+the same pipeline as PDFs, Office files, OCR text, and media transcripts.
+
+Connector API:
+
+```txt
+POST /api/v1/workspaces/{workspace_id}/connectors/ingest
+```
+
+Supported request shapes:
+
+```json
+{
+  "source_type": "web",
+  "url": "https://example.com/page"
+}
+```
+
+```json
+{
+  "source_type": "youtube",
+  "url": "https://www.youtube.com/watch?v=abcDEF123_4"
+}
+```
+
+### Web URL Ingestion
+
+Web ingestion uses a safe fetch policy and a small standard-library HTML text
+extractor. It does not run browser automation and does not execute JavaScript.
+
+Default safety behavior:
+
+- Allows `https` URLs only.
+- Rejects empty URLs and embedded URL credentials.
+- Rejects non-HTTP schemes such as `file`, `ftp`, `gopher`, `data`, and
+  `javascript`.
+- Rejects localhost and private/internal IP ranges.
+- Supports configured domain allowlists and blocklists.
+- Enforces response byte limits and request timeouts.
+- Manually validates redirect targets before following them.
+
+Web metadata includes:
+
+- `source_type: "web"`
+- `url`
+- `final_url`
+- `title`
+- `content_type`
+
+Future citation labels can use:
+
+```txt
+Website: example.com/page
+```
+
+### YouTube Transcript Ingestion
+
+YouTube ingestion uses `youtube-transcript-api` to fetch available transcripts.
+It does not call paid APIs and does not download video/audio. Unit tests use fake
+transcript clients and do not call YouTube.
+
+Supported inputs:
+
+- Raw YouTube video IDs
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+
+Transcript segments are grouped into readable timestamp windows.
+
+YouTube metadata includes:
+
+- `source_type: "youtube"`
+- `video_id`
+- `url`
+- `title`
+- `language`
+- `start_seconds`
+- `end_seconds`
+- `timestamp_start`
+- `timestamp_end`
+- `segment_count`
+
+Future citation labels can use:
+
+```txt
+YouTube: 00:01:12-00:02:03
+```
+
+### Repository ZIP Ingestion
+
+Repository ingestion supports uploaded `.zip` files through the normal document
+upload endpoint. In this phase, all `.zip` uploads are treated as repository
+archives.
+
+ZIP safety behavior:
+
+- Validates every member path before reading files.
+- Rejects path traversal such as `../evil.py`.
+- Rejects absolute paths and Windows drive paths such as `C:\evil.py`.
+- Reads files from ZIP memory without extracting the archive to disk.
+- Enforces max file count, max per-file bytes, and max total bytes.
+- Skips likely binary files.
+
+Default repo filters include common code and documentation extensions:
+
+- `.py`, `.ts`, `.tsx`, `.js`, `.jsx`
+- `.md`, `.txt`, `.json`, `.yml`, `.yaml`, `.toml`, `.sql`, `.html`, `.css`
+
+Default exclusions include dependency/build/cache folders and common secret or
+lock files:
+
+- `.git`, `node_modules`, `.next`, `dist`, `build`, `__pycache__`
+- `.venv`, `venv`, `.pytest_cache`, `.ruff_cache`
+- `.env`, `.env.local`, `.env.production`, private key filenames
+- `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `poetry.lock`
+
+Repo metadata includes:
+
+- `source_type: "repo"`
+- `repo_name`
+- `file_path`
+- `language`
+- `line_start`
+- `line_end`
+
+Future citation labels can use:
+
+```txt
+Repo: src/main.py, Lines 10-45
+```
+
 ## Office And Table Ingestion
 
 Office and table ingestion extends the existing loader architecture. Uploads are
@@ -336,6 +475,9 @@ ingestion blocks include enough metadata to support labels such as:
 - `Sheet Sales, Rows 2–6`
 - `Table 1, Rows 2–4`
 - `Video.mp4, 00:01:12-00:02:03`
+- `Website: example.com/page`
+- `YouTube: 00:01:12-00:02:03`
+- `Repo: src/main.py, Lines 10-45`
 
 ## Known Limitations
 
@@ -352,6 +494,13 @@ ingestion blocks include enough metadata to support labels such as:
 - Transcription quality depends on audio quality and the selected local model.
 - Very large media should eventually move from in-process background tasks to a
   real worker queue.
+- Web extraction is simple readable text, not browser-rendered JavaScript.
+- YouTube ingestion requires transcript availability; private videos may not
+  work.
+- Repository ingestion supports ZIP uploads, not Git clone yet.
+- Secret-like filenames are skipped by default, but this is not a full secret
+  scanner.
+- Very large repositories should eventually move to async worker processing.
 - Images inside Office files are not extracted.
 - Speaker notes and comments are not extracted.
 - Complex nested Word tables may be simplified.
