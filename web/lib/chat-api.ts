@@ -27,6 +27,8 @@ export type QuerySource = {
 };
 
 export type QueryResponse = {
+  chat_session_id: string;
+  chat_session_title: string;
   user_message_id: string;
   assistant_message_id: string;
   message: string;
@@ -40,15 +42,36 @@ export type QueryResponse = {
 
 export type StreamQueryInput = {
   query: string;
+  chat_session_id?: string;
   document_ids?: string[];
   top_k?: number;
 };
 
 export type StreamQueryHandlers = {
-  onStart?: (data: { assistant_message_id: string }) => void;
+  onStart?: (data: { chat_session_id: string; assistant_message_id: string }) => void;
   onToken?: (text: string) => void;
   onFinal?: (response: QueryResponse) => void;
   onError?: (message: string) => void;
+};
+
+export type ChatSession = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+};
+
+export type ChatHistoryMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  created_at: string;
+  updated_at: string;
+  attached_document_ids: string[];
+  citations: QueryCitation[];
+  source_list: QuerySource[];
 };
 
 export async function queryWorkspace(
@@ -62,6 +85,34 @@ export async function queryWorkspace(
     },
     body: JSON.stringify(input),
   });
+}
+
+export async function listChatSessions(
+  workspaceId: string,
+): Promise<ChatSession[]> {
+  return apiRequest<ChatSession[]>(`/workspaces/${workspaceId}/chat-sessions`);
+}
+
+export async function createChatSession(
+  workspaceId: string,
+  title = "New chat",
+): Promise<ChatSession> {
+  return apiRequest<ChatSession>(`/workspaces/${workspaceId}/chat-sessions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title }),
+  });
+}
+
+export async function listChatSessionMessages(
+  workspaceId: string,
+  sessionId: string,
+): Promise<ChatHistoryMessage[]> {
+  return apiRequest<ChatHistoryMessage[]>(
+    `/workspaces/${workspaceId}/chat-sessions/${sessionId}/messages`,
+  );
 }
 
 export async function streamWorkspaceQuery(
@@ -136,7 +187,9 @@ function handleSseEvent(rawEvent: string, handlers: StreamQueryHandlers): void {
   const data = JSON.parse(dataLine.replace("data:", "").trim()) as unknown;
 
   if (event === "start") {
-    handlers.onStart?.(data as { assistant_message_id: string });
+    handlers.onStart?.(
+      data as { chat_session_id: string; assistant_message_id: string },
+    );
   }
 
   if (event === "token") {

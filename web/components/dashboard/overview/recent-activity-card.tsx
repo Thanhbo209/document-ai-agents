@@ -1,4 +1,4 @@
-import { formatRelativeTime, humanizeSourceType } from "../../../lib/format";
+import { formatRelativeTime } from "../../../lib/format";
 import { getFileExtension } from "../../../lib/file-icons";
 import { FileTypeBadge } from "../../documents/document-file-icon";
 import { StatusBadge } from "../../ui/status-badge";
@@ -68,8 +68,7 @@ export function RecentActivityCard({
                     {doc.title}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {humanizeSourceType(ext || doc.source_type)} ·{" "}
-                    {formatRelativeTime(doc.updated_at)}
+                    Updated {formatRelativeTime(doc.updated_at)}
                   </p>
                 </div>
                 <StatusBadge status={doc.status} />

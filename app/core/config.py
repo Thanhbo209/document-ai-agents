@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = Field(default=40)
 
     ocr_enabled: bool = Field(default=True)
+    ocr_tesseract_cmd: str | None = Field(default=None)
     ocr_low_confidence_threshold: float = Field(default=0.65)
 
     media_async_enabled: bool = Field(default=True)

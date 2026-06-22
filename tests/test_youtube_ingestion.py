@@ -1,7 +1,11 @@
+import sys
+from types import SimpleNamespace
+
 import pytest
 
 from app.ingestion.youtube import (
     YouTubeTranscript,
+    YouTubeTranscriptApiClient,
     YouTubeTranscriptError,
     YouTubeTranscriptSegment,
     extract_youtube_blocks,
@@ -79,3 +83,36 @@ def test_extract_youtube_blocks_uses_fake_client() -> None:
 def test_transcript_unavailable_error_is_readable() -> None:
     with pytest.raises(YouTubeTranscriptError, match="Transcript unavailable"):
         extract_youtube_blocks("abcDEF123_4", FailingYouTubeClient())
+
+
+def test_youtube_api_client_supports_current_fetch_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeFetchedTranscript:
+        language_code = "en"
+
+        def to_raw_data(self) -> list[dict]:
+            return [
+                {
+                    "text": "Transcript from the current package API.",
+                    "start": 3.0,
+                    "duration": 4.0,
+                }
+            ]
+
+    class FakeYouTubeTranscriptApi:
+        def fetch(self, video_id: str) -> FakeFetchedTranscript:
+            assert video_id == "abcDEF123_4"
+            return FakeFetchedTranscript()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "youtube_transcript_api",
+        SimpleNamespace(YouTubeTranscriptApi=FakeYouTubeTranscriptApi),
+    )
+
+    transcript = YouTubeTranscriptApiClient().fetch_transcript("abcDEF123_4")
+
+    assert transcript.language == "en"
+    assert transcript.segments[0].text == "Transcript from the current package API."
+    assert transcript.segments[0].start_seconds == 3.0

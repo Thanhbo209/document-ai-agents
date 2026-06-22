@@ -2,7 +2,6 @@ import { WorkspaceDocument } from "../../lib/upload-api";
 import { getFileExtension } from "../../lib/file-icons";
 import { FileTypeBadge } from "../documents/document-file-icon";
 import { StatusBadge } from "../ui/status-badge";
-import { humanizeSourceType } from "../../lib/format";
 
 type TargetDocumentCardProps = {
   document: WorkspaceDocument;
@@ -49,7 +48,6 @@ export function TargetDocumentCard({
           </span>
           <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <StatusBadge status={document.status} />
-            <span>{humanizeSourceType(ext || document.source_type)}</span>
             {document.chunk_count > 0 && (
               <span>{document.chunk_count.toLocaleString()} chunks</span>
             )}

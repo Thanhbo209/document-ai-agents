@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -18,7 +19,10 @@ class OcrError(ValueError):
 
 class OcrEngineUnavailableError(OcrError):
     def __init__(self) -> None:
-        super().__init__("OCR engine unavailable. Install Tesseract or disable OCR.")
+        super().__init__(
+            "OCR engine unavailable. Install Tesseract, set "
+            "RAG_PLATFORM_OCR_TESSERACT_CMD, or disable OCR."
+        )
 
 
 @dataclass(frozen=True)
@@ -66,8 +70,10 @@ class TesseractOcrEngine:
     def __init__(
         self,
         low_confidence_threshold: float = DEFAULT_LOW_CONFIDENCE_THRESHOLD,
+        tesseract_cmd: str | None = None,
     ) -> None:
         self.low_confidence_threshold = low_confidence_threshold
+        self.tesseract_cmd = tesseract_cmd
 
     def extract_page(
         self,
@@ -79,6 +85,8 @@ class TesseractOcrEngine:
             from PIL import Image
         except ImportError as exc:
             raise OcrEngineUnavailableError() from exc
+
+        _configure_tesseract_binary(pytesseract, self.tesseract_cmd)
 
         try:
             with Image.open(image_path) as image:
@@ -278,3 +286,27 @@ def _union_bbox(boxes: list[OcrBoundingBox]) -> OcrBoundingBox:
         width=right - left,
         height=bottom - top,
     )
+
+
+def _configure_tesseract_binary(pytesseract_module: object, configured_cmd: str | None) -> None:
+    command = _resolve_tesseract_cmd(configured_cmd)
+    if command:
+        pytesseract_module.pytesseract.tesseract_cmd = command
+
+
+def _resolve_tesseract_cmd(configured_cmd: str | None) -> str | None:
+    if configured_cmd and configured_cmd.strip():
+        return configured_cmd.strip()
+
+    path_command = shutil.which("tesseract")
+    if path_command:
+        return path_command
+
+    for candidate in (
+        Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
+        Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
+    ):
+        if candidate.exists():
+            return str(candidate)
+
+    return None

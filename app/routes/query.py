@@ -37,6 +37,7 @@ query_documents_access = require_workspace_permission(WorkspacePermission.QUERY_
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1)
     document_ids: list[str] | None = None
+    chat_session_id: str | None = None
     top_k: int = Field(default=5, ge=1, le=20)
 
 
@@ -66,6 +67,8 @@ class QuerySourceResponse(BaseModel):
 
 
 class QueryResponse(BaseModel):
+    chat_session_id: str
+    chat_session_title: str
     user_message_id: str
     assistant_message_id: str
     message: str
@@ -125,6 +128,14 @@ def _run_query(
     db: Session,
     user_id: str,
 ) -> QueryResponse:
+    conversation_repo = ConversationRepository(db)
+    session = _resolve_chat_session(
+        conversation_repo=conversation_repo,
+        workspace_id=workspace_id,
+        user_id=user_id,
+        session_id=request.chat_session_id,
+        query=request.query,
+    )
     document_ids = _resolve_document_ids(
         db=db,
         workspace_id=workspace_id,
@@ -207,20 +218,53 @@ def _run_query(
     )
 
     user_message_id, assistant_message_id = _persist_conversation(
-        db=db,
+        conversation_repo=conversation_repo,
         workspace_id=workspace_id,
+        session_id=session.id,
         user_id=user_id,
         query=request.query,
         answer=answer,
+        attached_document_ids=request.document_ids or [],
     )
+    conversation_repo.touch_session(session)
 
     db.commit()
     record_query()
 
     return _query_response_from_answer(
+        chat_session_id=session.id,
+        chat_session_title=session.title,
         user_message_id=user_message_id,
         assistant_message_id=assistant_message_id,
         answer=answer,
+    )
+
+
+def _resolve_chat_session(
+    conversation_repo: ConversationRepository,
+    workspace_id: str,
+    user_id: str,
+    session_id: str | None,
+    query: str,
+):
+    if session_id:
+        session = conversation_repo.get_session(
+            workspace_id=workspace_id,
+            session_id=session_id,
+        )
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Chat session was not found in this workspace.",
+            )
+        if session.title == "New chat":
+            conversation_repo.rename_session(session, _title_from_query(query))
+        return session
+
+    return conversation_repo.create_session(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        title=_title_from_query(query),
     )
 
 
@@ -291,24 +335,28 @@ def _retrieve_chunks(
 
 
 def _persist_conversation(
-    db: Session,
+    conversation_repo: ConversationRepository,
     workspace_id: str,
+    session_id: str,
     user_id: str,
     query: str,
     answer: GroundedAnswer,
+    attached_document_ids: list[str],
 ) -> tuple[str, str]:
-    conversation_repo = ConversationRepository(db)
-
     user_message = conversation_repo.create_message(
         workspace_id=workspace_id,
+        session_id=session_id,
         role=MessageRole.USER,
         content=query,
         user_id=user_id,
+        attached_document_ids=attached_document_ids,
     )
     assistant_message = conversation_repo.create_message(
         workspace_id=workspace_id,
+        session_id=session_id,
         role=MessageRole.ASSISTANT,
         content=answer.message,
+        attached_document_ids=attached_document_ids,
     )
 
     source_score_by_id = {source.source_id: source.score for source in answer.source_list}
@@ -330,11 +378,15 @@ def _estimate_tokens(text: str) -> int:
 
 
 def _query_response_from_answer(
+    chat_session_id: str,
+    chat_session_title: str,
     user_message_id: str,
     assistant_message_id: str,
     answer: GroundedAnswer,
 ) -> QueryResponse:
     return QueryResponse(
+        chat_session_id=chat_session_id,
+        chat_session_title=chat_session_title,
         user_message_id=user_message_id,
         assistant_message_id=assistant_message_id,
         message=answer.message,
@@ -382,6 +434,7 @@ def _stream_query_response(
     yield _sse_event(
         event="start",
         data={
+            "chat_session_id": response.chat_session_id,
             "assistant_message_id": response.assistant_message_id,
         },
     )
@@ -405,3 +458,10 @@ def _sse_event(
     data: dict[str, Any],
 ) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+def _title_from_query(query: str) -> str:
+    collapsed = " ".join(query.strip().split())
+    if len(collapsed) <= 60:
+        return collapsed or "New chat"
+    return f"{collapsed[:57]}..."

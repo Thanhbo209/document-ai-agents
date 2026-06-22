@@ -30,12 +30,20 @@ function toneForStatus(status: string): string {
   }
 
   if (
-    ["indexed", "succeeded", "approved", "active", "pro", "enterprise"].includes(lower)
+    [
+      "indexed",
+      "succeeded",
+      "completed",
+      "approved",
+      "active",
+      "pro",
+      "enterprise",
+    ].includes(lower)
   ) {
     return "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:ring-emerald-800";
   }
 
-  if (["failed", "rejected", "error", "exceeded"].includes(lower)) {
+  if (["failed", "rejected", "error", "exceeded", "cancelled"].includes(lower)) {
     return "bg-red-50 text-red-700 ring-red-200 dark:bg-red-950/30 dark:text-red-400 dark:ring-red-800";
   }
 
