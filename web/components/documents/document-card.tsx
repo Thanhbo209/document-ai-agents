@@ -1,7 +1,7 @@
 "use client";
 
 import { WorkspaceDocument } from "../../lib/upload-api";
-import { formatDate, formatBytes, humanizeSourceType } from "../../lib/format";
+import { formatDate, formatBytes } from "../../lib/format";
 import { getFileExtension } from "../../lib/file-icons";
 import { FileTypeBadge } from "./document-file-icon";
 import { StatusBadge } from "../ui/status-badge";
@@ -51,10 +51,6 @@ export function DocumentCard({ document, workspaceId }: DocumentCardProps) {
       {/* Metadata row */}
       <div className="mx-5 border-t border-border/60 py-4">
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <MetaItem
-            label="File type"
-            value={humanizeSourceType(ext || document.source_type)}
-          />
           <MetaItem
             label="Chunks"
             value={

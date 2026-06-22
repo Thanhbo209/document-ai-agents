@@ -1,10 +1,12 @@
 import {
   stripCitationMarkers,
   formatCitationLabel,
-  formatMetadataTimestamp,
+  formatCitationDetail,
 } from "../../lib/citations";
 import { QueryCitation, QuerySource } from "../../lib/chat-api";
 import { StatusBadge } from "../ui/status-badge";
+import { AttachedDocumentChips } from "./attached-document-chips";
+import { WorkspaceDocument } from "../../lib/upload-api";
 
 type ChatMessageProps = {
   role: "user" | "assistant";
@@ -13,6 +15,8 @@ type ChatMessageProps = {
   sources?: QuerySource[];
   confidence?: number;
   reviewFlags?: string[];
+  isFinal?: boolean;
+  attachedDocuments?: WorkspaceDocument[];
   messageId: string;
   sourceById: Map<string, QuerySource>;
   onOpenSource: (source: QuerySource) => void;
@@ -33,6 +37,8 @@ export function ChatMessage({
   citations,
   confidence,
   reviewFlags,
+  isFinal = false,
+  attachedDocuments = [],
   messageId,
   sourceById,
   onOpenSource,
@@ -53,12 +59,22 @@ export function ChatMessage({
         {displayContent || (role === "assistant" ? "" : "")}
       </p>
 
+      {role === "user" && attachedDocuments.length > 0 && (
+        <div className="mt-4 border-t border-primary-foreground/25 pt-3">
+          <p className="mb-2 text-xs font-medium opacity-80">
+            Attached context
+          </p>
+          <AttachedDocumentChips documents={attachedDocuments} compact />
+        </div>
+      )}
+
       {role === "assistant" && (
         <AssistantFooter
           messageId={messageId}
           citations={citations}
           confidence={confidence}
           reviewFlags={reviewFlags}
+          isFinal={isFinal}
           sourceById={sourceById}
           onOpenSource={onOpenSource}
         />
@@ -72,6 +88,7 @@ function AssistantFooter({
   citations,
   confidence,
   reviewFlags,
+  isFinal,
   sourceById,
   onOpenSource,
 }: {
@@ -79,6 +96,7 @@ function AssistantFooter({
   citations?: QueryCitation[];
   confidence?: number;
   reviewFlags?: string[];
+  isFinal: boolean;
   sourceById: Map<string, QuerySource>;
   onOpenSource: (source: QuerySource) => void;
 }) {
@@ -86,7 +104,7 @@ function AssistantFooter({
   const hasConfidence = confidence !== undefined;
   const hasFlags = reviewFlags && reviewFlags.length > 0;
 
-  if (!hasCitations && !hasConfidence && !hasFlags) {
+  if (!hasCitations && !hasConfidence && !hasFlags && !isFinal) {
     return null;
   }
 
@@ -112,10 +130,11 @@ function AssistantFooter({
           {citations!.map((citation) => {
             const source = sourceById.get(citation.source_id);
             const label = formatCitationLabel(citation.source_id);
-            const timestamp = source
-              ? formatMetadataTimestamp(source.metadata)
-              : null;
-
+            const detail = source
+              ? formatCitationDetail(source.metadata, citation.source_page)
+              : citation.source_page
+                ? `Page ${citation.source_page}`
+                : null;
             return (
               <button
                 key={`${messageId}-${citation.source_id}`}
@@ -130,20 +149,26 @@ function AssistantFooter({
                 title={
                   [
                     label,
-                    citation.source_page ? `page ${citation.source_page}` : null,
-                    timestamp,
+                    detail,
                   ]
                     .filter(Boolean)
                     .join(" · ")
                 }
               >
                 {label}
-                {citation.source_page ? ` · p.${citation.source_page}` : ""}
-                {timestamp ? ` · ${timestamp}` : ""}
+                {detail ? (
+                  <span className="text-muted-foreground"> · {detail}</span>
+                ) : null}
               </button>
             );
           })}
         </div>
+      )}
+
+      {isFinal && !hasCitations && (
+        <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+          No source citations were returned for this answer.
+        </p>
       )}
     </div>
   );

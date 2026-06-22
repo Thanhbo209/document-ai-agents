@@ -42,10 +42,11 @@ class YouTubeTranscriptApiClient:
             ) from exc
 
         try:
-            raw_transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            fetched_transcript = _fetch_with_supported_api(YouTubeTranscriptApi, video_id)
         except Exception as exc:
             raise YouTubeTranscriptError(f"YouTube transcript unavailable: {exc}") from exc
 
+        raw_transcript = _raw_transcript_items(fetched_transcript)
         segments = [
             YouTubeTranscriptSegment(
                 text=str(item.get("text", "")).strip(),
@@ -59,7 +60,7 @@ class YouTubeTranscriptApiClient:
         return YouTubeTranscript(
             video_id=video_id,
             title=None,
-            language=None,
+            language=_transcript_language(fetched_transcript),
             segments=segments,
         )
 
@@ -171,3 +172,41 @@ def extract_youtube_blocks(
         raise YouTubeTranscriptError("YouTube transcript did not contain readable text.")
 
     return blocks
+
+
+def _fetch_with_supported_api(api_class: object, video_id: str) -> object:
+    if hasattr(api_class, "get_transcript"):
+        return api_class.get_transcript(video_id)
+
+    api = api_class()
+    if hasattr(api, "fetch"):
+        return api.fetch(video_id)
+
+    raise YouTubeTranscriptError("Unsupported youtube-transcript-api version.")
+
+
+def _raw_transcript_items(fetched_transcript: object) -> list[dict]:
+    if isinstance(fetched_transcript, list):
+        return fetched_transcript
+
+    if hasattr(fetched_transcript, "to_raw_data"):
+        raw_data = fetched_transcript.to_raw_data()
+        return list(raw_data)
+
+    return [
+        {
+            "text": getattr(item, "text", ""),
+            "start": getattr(item, "start", 0.0),
+            "duration": getattr(item, "duration", 0.0),
+        }
+        for item in fetched_transcript
+    ]
+
+
+def _transcript_language(fetched_transcript: object) -> str | None:
+    language_code = getattr(fetched_transcript, "language_code", None)
+    if language_code:
+        return str(language_code)
+
+    language = getattr(fetched_transcript, "language", None)
+    return str(language) if language else None

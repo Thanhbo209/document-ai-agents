@@ -37,7 +37,19 @@ Tesseract also requires a system-wide Tesseract binary. If the binary is not
 installed and OCR is required, ingestion fails with a clear error:
 
 ```txt
-OCR engine unavailable. Install Tesseract or disable OCR.
+OCR engine unavailable. Install Tesseract, set RAG_PLATFORM_OCR_TESSERACT_CMD, or disable OCR.
+```
+
+On Windows, install Tesseract and either add it to `PATH` or set:
+
+```txt
+RAG_PLATFORM_OCR_TESSERACT_CMD="C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+```
+
+For local development without OCR, set:
+
+```txt
+RAG_PLATFORM_OCR_ENABLED=false
 ```
 
 ### Scanned PDFs

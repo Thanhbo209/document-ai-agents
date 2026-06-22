@@ -13,6 +13,7 @@ import {
   searchAdminAuditEvents,
 } from "../../lib/api";
 import { buildAdminNavItems, DashboardShell } from "../layout/dashboard-shell";
+import { FileTypeBadge } from "../documents/document-file-icon";
 import { Button } from "../ui/button";
 import { EmptyState } from "../ui/empty-state";
 import { ErrorState } from "../ui/error-state";
@@ -381,7 +382,9 @@ function WorkspacesSection({
                       <Td>
                         <StatusBadge status={document.status} />
                       </Td>
-                      <Td>{document.source_type}</Td>
+                      <Td>
+                        <FileTypeBadge ext={document.source_type} size={32} />
+                      </Td>
                       <Td>{document.file_count}</Td>
                       <Td>{document.chunk_count}</Td>
                       <Td>{formatDate(document.updated_at)}</Td>

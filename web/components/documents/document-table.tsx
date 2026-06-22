@@ -1,4 +1,6 @@
 import { WorkspaceDocument } from "../../lib/upload-api";
+import { getFileExtension } from "../../lib/file-icons";
+import { FileTypeBadge } from "./document-file-icon";
 import { EmptyState } from "../ui/empty-state";
 import { StatusBadge } from "../ui/status-badge";
 
@@ -23,7 +25,7 @@ export function DocumentTable({ documents }: DocumentTableProps) {
           <thead className="bg-muted/70 text-xs font-medium text-muted-foreground">
             <tr>
               <th className="px-6 py-3">Title</th>
-              <th className="px-6 py-3">Type</th>
+              <th className="px-6 py-3">Source</th>
               <th className="px-6 py-3">Status</th>
               <th className="px-6 py-3">Chunks</th>
               <th className="px-6 py-3">File</th>
@@ -33,56 +35,61 @@ export function DocumentTable({ documents }: DocumentTableProps) {
           </thead>
 
           <tbody className="divide-y divide-border/70">
-            {documents.map((document) => (
-              <tr
-                key={document.id}
-                className="align-top transition hover:bg-accent/50"
-              >
-                <td className="px-6 py-4">
-                  <p className="font-medium text-card-foreground">
-                    {document.title}
-                  </p>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    {document.id}
-                  </p>
-                </td>
+            {documents.map((document) => {
+              const filename = document.files[0]?.filename ?? document.title;
+              const ext = getFileExtension(filename);
 
-                <td className="px-6 py-4 text-muted-foreground">
-                  {document.source_type}
-                </td>
+              return (
+                <tr
+                  key={document.id}
+                  className="align-top transition hover:bg-accent/50"
+                >
+                  <td className="px-6 py-4">
+                    <p className="font-medium text-card-foreground">
+                      {document.title}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      {document.id}
+                    </p>
+                  </td>
 
-                <td className="px-6 py-4">
-                  <StatusBadge status={document.status} />
-                </td>
+                  <td className="px-6 py-4">
+                    <FileTypeBadge ext={ext || document.source_type} size={32} />
+                  </td>
 
-                <td className="px-6 py-4 font-mono text-muted-foreground">
-                  {document.chunk_count}
-                </td>
+                  <td className="px-6 py-4">
+                    <StatusBadge status={document.status} />
+                  </td>
 
-                <td className="px-6 py-4 text-muted-foreground">
-                  {document.files[0]?.filename ?? "No file"}
-                </td>
+                  <td className="px-6 py-4 font-mono text-muted-foreground">
+                    {document.chunk_count}
+                  </td>
 
-                <td className="px-6 py-4">
-                  {document.latest_job ? (
-                    <div>
-                      <StatusBadge status={document.latest_job.status} />
-                      {document.latest_job.error_message && (
-                        <p className="mt-2 max-w-xs text-xs leading-5 text-destructive">
-                          {document.latest_job.error_message}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">No job</span>
-                  )}
-                </td>
+                  <td className="px-6 py-4 text-muted-foreground">
+                    {filename}
+                  </td>
 
-                <td className="px-6 py-4 text-muted-foreground">
-                  {new Date(document.updated_at).toLocaleString()}
-                </td>
-              </tr>
-            ))}
+                  <td className="px-6 py-4">
+                    {document.latest_job ? (
+                      <div>
+                        <StatusBadge status={document.latest_job.status} />
+                        {document.latest_job.error_message && (
+                          <p className="mt-2 max-w-xs text-xs leading-5 text-destructive">
+                            {document.latest_job.error_message}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No job</span>
+                    )}
+                  </td>
+
+                  <td className="px-6 py-4 text-muted-foreground">
+                    {new Date(document.updated_at).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
 
             {documents.length === 0 && (
               <tr>

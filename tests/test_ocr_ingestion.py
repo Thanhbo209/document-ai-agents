@@ -166,6 +166,43 @@ def test_ocr_engine_unavailable_error_is_readable(
         TesseractOcrEngine().extract_page(image_path, page_number=1)
 
 
+def test_ocr_engine_uses_configured_tesseract_command(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import pytesseract
+
+    image_path = tmp_path / "scan.png"
+    create_text_image(image_path)
+    fake_tesseract = tmp_path / "tesseract.exe"
+    fake_tesseract.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(pytesseract.pytesseract, "tesseract_cmd", "tesseract")
+
+    def fake_image_to_data(*args, **kwargs):
+        return {
+            "text": ["Configured", "OCR"],
+            "conf": ["90", "80"],
+            "block_num": [1, 1],
+            "par_num": [1, 1],
+            "line_num": [1, 1],
+            "left": [10, 90],
+            "top": [20, 20],
+            "width": [75, 40],
+            "height": [20, 20],
+        }
+
+    monkeypatch.setattr(pytesseract, "image_to_data", fake_image_to_data)
+
+    result = TesseractOcrEngine(tesseract_cmd=str(fake_tesseract)).extract_page(
+        image_path,
+        page_number=1,
+    )
+
+    assert pytesseract.pytesseract.tesseract_cmd == str(fake_tesseract)
+    assert result.text == "Configured OCR"
+
+
 def test_scanned_pdf_without_ocr_engine_fails_clearly(tmp_path: Path) -> None:
     pdf_path = tmp_path / "scanned.pdf"
     create_scanned_pdf(pdf_path, tmp_path / "scan.png")

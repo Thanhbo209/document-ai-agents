@@ -44,6 +44,20 @@ export type UploadDocumentResponse = {
   chunks_created: number;
 };
 
+export type ConnectorSourceType = "web" | "youtube";
+
+export type ConnectorIngestInput = {
+  source_type: ConnectorSourceType;
+  url: string;
+};
+
+export type ConnectorIngestResponse = {
+  document_id: string;
+  job_id: string;
+  status: string;
+  chunks_created: number;
+};
+
 type ListDocumentsParams = {
   query?: string;
   status?: string;
@@ -81,6 +95,22 @@ export async function uploadDocument(
     {
       method: "POST",
       body: formData,
+    },
+  );
+}
+
+export async function ingestConnector(
+  workspaceId: string,
+  input: ConnectorIngestInput,
+): Promise<ConnectorIngestResponse> {
+  return apiRequest<ConnectorIngestResponse>(
+    `/workspaces/${workspaceId}/connectors/ingest`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
     },
   );
 }

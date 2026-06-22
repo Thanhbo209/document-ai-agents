@@ -5,6 +5,7 @@
  * Backend citation data (source_id, chunk_id, etc.) is never mutated.
  * Only the visible text shown to users is transformed.
  */
+import { humanizeSourceType } from "./format";
 
 /**
  * Strips inline citation markers like [S1], [S2], [S12] from the
@@ -90,6 +91,49 @@ export function formatSourceMetadataSummary(
   }
 
   return formatMetadataTimestamp(metadata);
+}
+
+export function formatSourceKind(
+  metadata: Record<string, unknown> | undefined,
+): string {
+  const sourceType = readString(metadata, "source_type");
+  return sourceType ? humanizeSourceType(sourceType) : "Source";
+}
+
+export function formatCitationDetail(
+  metadata: Record<string, unknown> | undefined,
+  sourcePage?: number | null,
+): string | null {
+  const timestamp = formatMetadataTimestamp(metadata);
+  if (timestamp) return timestamp;
+
+  const filePath = readString(metadata, "file_path");
+  const lineStart = readNumber(metadata, "line_start");
+  const lineEnd = readNumber(metadata, "line_end");
+  if (filePath && lineStart && lineEnd) {
+    return `${filePath} lines ${lineStart}-${lineEnd}`;
+  }
+
+  const sheetName = readString(metadata, "sheet_name");
+  const rowStart = readNumber(metadata, "row_start");
+  const rowEnd = readNumber(metadata, "row_end");
+  if (rowStart && rowEnd) {
+    return [sheetName ? `Sheet ${sheetName}` : null, `Rows ${rowStart}-${rowEnd}`]
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  const slideNumber = readNumber(metadata, "slide_number");
+  const slideTitle = readString(metadata, "slide_title");
+  if (slideNumber) {
+    return [`Slide ${slideNumber}`, slideTitle].filter(Boolean).join(" - ");
+  }
+
+  const pageNumber = sourcePage ?? readNumber(metadata, "page_number");
+  if (pageNumber) return `Page ${pageNumber}`;
+
+  const url = readString(metadata, "final_url") ?? readString(metadata, "url");
+  return url;
 }
 
 function readString(

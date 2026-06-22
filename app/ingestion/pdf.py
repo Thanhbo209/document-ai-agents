@@ -99,7 +99,10 @@ def extract_image_file(
         raise ExtractionError("OCR is disabled. Image ingestion requires OCR.")
 
     storage = artifact_storage or ArtifactStorage(settings.artifact_dir)
-    engine = ocr_engine or TesseractOcrEngine(settings.ocr_low_confidence_threshold)
+    engine = ocr_engine or TesseractOcrEngine(
+        settings.ocr_low_confidence_threshold,
+        tesseract_cmd=settings.ocr_tesseract_cmd,
+    )
 
     try:
         blocks = OcrWorker(
@@ -135,7 +138,10 @@ def _run_pdf_ocr_fallback(
 ) -> list[ExtractedTextBlock]:
     settings = get_settings()
     storage = artifact_storage or ArtifactStorage(settings.artifact_dir)
-    engine = ocr_engine or TesseractOcrEngine(settings.ocr_low_confidence_threshold)
+    engine = ocr_engine or TesseractOcrEngine(
+        settings.ocr_low_confidence_threshold,
+        tesseract_cmd=settings.ocr_tesseract_cmd,
+    )
 
     try:
         return OcrWorker(

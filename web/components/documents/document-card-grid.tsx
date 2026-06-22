@@ -46,7 +46,7 @@ export function DocumentCardGrid({
     return (
       <EmptyState
         title="No documents found"
-        description="Upload a source file to get started. Accepted formats: PDF, TXT, Markdown."
+        description="Import a file, web page, YouTube transcript, or repository ZIP to get started."
         icon={
           <svg
             viewBox="0 0 24 24"

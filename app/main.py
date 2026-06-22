@@ -10,6 +10,7 @@ from app.routes.auth import router as auth_router
 from app.routes.billing import router as billing_router
 from app.routes.compliance import router as compliance_router
 from app.routes.connectors import router as connectors_router
+from app.routes.conversations import router as conversations_router
 from app.routes.documents import router as documents_router
 from app.routes.exports import router as exports_router
 from app.routes.health import router as health_router
@@ -47,6 +48,7 @@ app.include_router(workspace_settings_router, prefix="/api/v1")
 app.include_router(usage_router, prefix="/api/v1")
 app.include_router(upload_router, prefix="/api/v1")
 app.include_router(connectors_router, prefix="/api/v1")
+app.include_router(conversations_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
 app.include_router(query_router, prefix="/api/v1")
 app.include_router(reviews_router, prefix="/api/v1")

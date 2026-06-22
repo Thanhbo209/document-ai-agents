@@ -57,6 +57,9 @@ class User(Base, TimestampMixin):
     )
 
     messages: Mapped[list[ConversationMessage]] = relationship(back_populates="user")
+    conversation_sessions: Mapped[list[ConversationSession]] = relationship(
+        back_populates="user",
+    )
 
 
 class Workspace(Base, TimestampMixin):
@@ -230,18 +233,49 @@ class DocumentChunk(Base, TimestampMixin):
     )
 
 
-class ConversationMessage(Base, TimestampMixin):
-    __tablename__ = "conversation_messages"
-    __table_args__ = (Index("ix_conversation_messages_workspace", "workspace_id"),)
+class ConversationSession(Base, TimestampMixin):
+    __tablename__ = "conversation_sessions"
+    __table_args__ = (
+        Index("ix_conversation_sessions_workspace_updated", "workspace_id", "updated_at"),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    title: Mapped[str] = mapped_column(String(180), default="New chat", nullable=False)
+
+    user: Mapped[User | None] = relationship(back_populates="conversation_sessions")
+    messages: Mapped[list[ConversationMessage]] = relationship(
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConversationMessage(Base, TimestampMixin):
+    __tablename__ = "conversation_messages"
+    __table_args__ = (
+        Index("ix_conversation_messages_workspace", "workspace_id"),
+        Index("ix_conversation_messages_session", "session_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+    session_id: Mapped[str | None] = mapped_column(
+        ForeignKey("conversation_sessions.id"),
+        nullable=True,
+    )
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    attached_document_ids: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+    )
 
     user: Mapped[User | None] = relationship(back_populates="messages")
+    session: Mapped[ConversationSession | None] = relationship(back_populates="messages")
     citations: Mapped[list[Citation]] = relationship(
         back_populates="message",
         cascade="all, delete-orphan",
