@@ -6,6 +6,7 @@ import { DashboardShell } from "../layout/dashboard-shell";
 import { Button } from "../ui/button";
 import { ErrorState } from "../ui/error-state";
 import { PageHeader } from "../ui/page-header";
+import { JobProgressCards } from "../upload/job-progress-cards";
 import { UploadDropzone } from "../upload/upload-dropzone";
 import { DocumentCardGrid } from "./document-card-grid";
 
@@ -54,13 +55,15 @@ export function DocumentsManager({ workspaceId }: DocumentsManagerProps) {
       <PageHeader
         kicker="Document library"
         title="Your indexed sources"
-        description="All uploaded files are chunked and indexed for grounded chat. Search or filter by status to find what you need."
+        description="Import files, tables, OCR images, media transcripts, web pages, YouTube transcripts, and repository ZIPs for grounded chat."
         actions={
           <Button href={`/chat/${workspaceId}`}>Open chat</Button>
         }
       />
 
       <div className="grid gap-6">
+        <JobProgressCards documents={documents} />
+
         {/* Upload dropzone */}
         <UploadDropzone
           workspaceId={workspaceId}
